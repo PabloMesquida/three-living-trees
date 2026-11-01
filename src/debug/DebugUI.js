@@ -29,6 +29,7 @@ export class DebugUI
         const leaves = renderer.inspector.createParameters('Hojas')
         leaves.add(params, 'leafCount', 0, simulation.capacity, 1).name('cantidad').onChange(onChange)
         leaves.add(params, 'leafFall').name('caída').onChange(onChange)
+        leaves.add(params, 'spontaneousFall', 0, 1, 0.01).name('caída espontánea').onChange(onChange)
         leaves.add(params, 'regeneration').name('regeneración').onChange(onChange)
         leaves.add(params, 'detachProbability', 0, 1, 0.01).name('prob. desprendimiento').onChange(onChange)
         leaves.add(params, 'detachThreshold', 0.1, 6, 0.05).name('umbral de sacudida').onChange(onChange)

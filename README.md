@@ -18,7 +18,7 @@ Open the address Vite prints (by default `http://localhost:5173/`).
 ## Usage
 
 - Move the pointer over the branches to shake the tree; drag to orbit the camera.
-- The panel lets you set the number of leaves, turn falling and regrowth on or off, reset, and shake the whole tree.
+- The panel lets you set the number of leaves, make leaves fall on their own (from one at a time up to all together), turn falling and regrowth on or off, reset, and shake the whole tree.
 - Add `#debug` to the URL to show every setting and the particle counters.
 
 ## Tech

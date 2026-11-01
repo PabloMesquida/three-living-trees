@@ -54,6 +54,7 @@ export const params = {
     // Leaves
     leafCount: count, // leaves shown, from 0 to options.capacity
     leafFall: true,
+    spontaneousFall: 0, // 0..1: leaves falling on their own, from one at a time (low) to all together (1)
     regeneration: true,
     detachProbability: 0.25, // chance per decision tick for a leaf whose branch shakes past its grip
     detachThreshold: 0.5, // branch shake (rad/s) under which no leaf lets go

@@ -32,6 +32,17 @@ export const STATE_ATTACHED = 0
 export const STATE_FALLING = 1
 export const STATE_GROWING = 2
 
+/**
+ * Spontaneous fall: 0 = off, 1 = every attached leaf falls at once. In
+ * between the chance per decision tick grows exponentially, so the low end
+ * drops the odd leaf and the top end empties the tree in a burst.
+ */
+export function spontaneousChance(amount)
+{
+    if(amount <= 0) return 0
+    return Math.pow(10, -5.5 * (1 - Math.min(amount, 1)))
+}
+
 // Detach decisions are taken on a fixed clock, not per frame, so the chance
 // of losing a leaf does not depend on the frame rate.
 const DECISION_RATE = 20
@@ -86,6 +97,7 @@ export class LeafSimulation
             detachProbability: uniform(0.25),
             detachThreshold: uniform(1.2),
             gripSpread: uniform(4), // a leaf lets go between 1x and (1 + spread)x the threshold
+            spontaneousChance: uniform(0), // chance per decision tick that a leaf falls on its own
             gravity: uniform(4),
             wind: uniform(new THREE.Vector3()),
             growDuration: uniform(1.5),
@@ -170,11 +182,15 @@ export class LeafSimulation
                 const grip = u.detachThreshold.mul(randomCycle(1).mul(u.gripSpread).add(1))
                 const roll = hash(leafKey.add(u.tick.mul(uint(32452843))).add(uint(999331)))
 
+                // Two reasons to let go: the branch shakes past the leaf's grip,
+                // or the leaf simply falls on its own (spontaneous fall)
+                const shaken = shake.greaterThan(grip).and(roll.lessThan(u.detachProbability))
+                const spontaneous = hash(leafKey.add(u.tick.mul(uint(49979687))).add(uint(4256233))).lessThan(u.spontaneousChance)
+
                 const letGo = u.fallEnabled.greaterThan(0.5)
                     .and(u.tickFired.greaterThan(0.5))
                     .and(timer.greaterThan(MIN_ATTACHED_TIME))
-                    .and(shake.greaterThan(grip))
-                    .and(roll.lessThan(u.detachProbability))
+                    .and(shaken.or(spontaneous))
 
                 If(letGo, () =>
                 {

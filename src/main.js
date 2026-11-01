@@ -8,7 +8,7 @@ import { loadGlbTree } from './tree/GlbTree.js'
 import { BranchRig } from './rig/BranchRig.js'
 import { BoneState } from './rig/BoneState.js'
 import { generateAnchors, orientAnchors } from './anchors/AnchorSet.js'
-import { LeafSimulation } from './leaves/LeafSimulation.js'
+import { LeafSimulation, spontaneousChance } from './leaves/LeafSimulation.js'
 import { LeafRenderer } from './leaves/LeafRenderer.js'
 import { LEAF_TEXTURES, loadLeafTextures } from './leaves/leafTextures.js'
 import { assignVariants } from './leaves/textureVariants.js'
@@ -220,6 +220,7 @@ async function main()
         u.detachProbability.value = params.detachProbability
         u.detachThreshold.value = params.detachThreshold
         u.gripSpread.value = params.gripVariation
+        u.spontaneousChance.value = spontaneousChance(params.spontaneousFall)
         u.gravity.value = params.gravity
         u.wind.value.set(Math.cos(angle), 0, -Math.sin(angle)).multiplyScalar(params.windStrength)
         u.growDuration.value = params.growDuration

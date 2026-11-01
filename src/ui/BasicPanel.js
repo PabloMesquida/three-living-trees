@@ -11,26 +11,33 @@ export class BasicPanel
         const element = document.getElementById('basic-panel')
         element.hidden = false
 
-        // Number of leaves
-        const countLabel = document.createElement('label')
-        countLabel.className = 'row'
-        const countName = document.createElement('span')
-        countName.textContent = 'hojas'
-        const countValue = document.createElement('output')
-        const countInput = document.createElement('input')
-        countInput.type = 'range'
-        countInput.min = 0
-        countInput.max = simulation.capacity
-        countInput.step = 1
-        countInput.value = params.leafCount
-        countValue.textContent = params.leafCount
-        countInput.addEventListener('input', () =>
+        // Sliders
+        const slider = (key, text, min, max, step, format) =>
         {
-            params.leafCount = Number(countInput.value)
-            countValue.textContent = countInput.value
-            onChange()
-        })
-        countLabel.append(countName, countInput, countValue)
+            const label = document.createElement('label')
+            label.className = 'row'
+            const name = document.createElement('span')
+            name.textContent = text
+            const value = document.createElement('output')
+            const input = document.createElement('input')
+            input.type = 'range'
+            input.min = min
+            input.max = max
+            input.step = step
+            input.value = params[key]
+            value.textContent = format(params[key])
+            input.addEventListener('input', () =>
+            {
+                params[key] = Number(input.value)
+                value.textContent = format(params[key])
+                onChange()
+            })
+            label.append(name, input, value)
+            return label
+        }
+
+        const countLabel = slider('leafCount', 'hojas', 0, simulation.capacity, 1, (value) => value)
+        const spontaneousLabel = slider('spontaneousFall', 'caída sola', 0, 1, 0.01, (value) => `${Math.round(value * 100)} %`)
 
         // Toggles
         const toggle = (key, text) =>
@@ -67,7 +74,7 @@ export class BasicPanel
             button('sacudir todo', () => rig.shakeAll())
         )
 
-        element.append(countLabel, toggle('leafFall', 'caída'), toggle('regeneration', 'regeneración'), actions)
+        element.append(countLabel, spontaneousLabel, toggle('leafFall', 'caída'), toggle('regeneration', 'regeneración'), actions)
     }
 
     update()
