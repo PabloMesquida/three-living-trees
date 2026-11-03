@@ -23,7 +23,7 @@ Open the address Vite prints (by default `http://localhost:5173/`).
 ## Use it as a library
 
 ```bash
-npm install three github:PabloMesquida/tree-demo#v0.3.0
+npm install three github:PabloMesquida/tree-demo#v0.4.0
 ```
 
 Works with three 0.186.1 or newer (tested with 0.186.1 and 0.187.0).
@@ -57,19 +57,49 @@ tree.set({ spontaneousFall: 0.3, windStrength: 1 }) // any key of DEFAULT_PARAMS
 
 Two kinds of tree work:
 
-- **Rigged:** an armature with bones named `trunk*` and `branch*` and skinned meshes. The branches sway, and shaking them makes leaves fall.
-- **Static:** plain meshes with no bones (e.g. a Sapling Tree Gen curve converted to a mesh, smooth shaded). The tree does not move. Leaves grow on the thinner branches and fall on their own with `spontaneousFall`.
+- **Rigged:** an armature with bones named `trunk*` and `branch*` and skinned meshes. Each branch is a spring the pointer can shake, and shaking makes leaves fall. Expensive: the CPU animates every bone and the GPU skins every vertex.
+- **Static:** plain meshes with no bones (e.g. a Sapling Tree Gen curve converted to a mesh, smooth shaded). The whole tree sways in the wind in its vertex shader. Cheap, so several of them fit in one scene. Leaves grow on the thinner branches.
 
 Main options of `LeafTree.create`: `url` or `object` (an already loaded `Object3D`), `count`, `capacity`, `seed`, `textures`, `branchRadius` (static trees), `groundY`, `params`. The library needs a `WebGPURenderer` running on WebGPU; there is no WebGL fallback.
+
+### Static trees: wind sway
+
+The bark and the attached leaves share one displacement function, so leaves never come off their branch. Shadows sway too.
+
+- The displacement grows with the height above the base of the tree (height²): the trunk barely moves and the crown does. It points along `windAngle`, the same angle that blows the falling leaves. It combines a lean that grows in gusts, two oscillations, a smaller one across the wind and a faster flutter. The phase changes across the crown.
+- `sway` (default 1): how much the tree moves. At 1 the crown leans about 3 % of the tree height; `0` keeps it still.
+- `swaySpeed` (default 1): 2 is twice as fast.
+- Each tree starts at its own point in the motion, taken from its `seed`. Give each tree in a scene a different `seed` so they don't sway in step.
+- Strong gusts shake leaves off with the same rule as a rigged tree's branches (`detachThreshold`, `gripVariation`, `detachProbability`). At the defaults no leaf falls at `sway: 1`, a few fall in the strongest gusts at `sway: 2`, and many at `sway: 3`.
+- Falling leaves are free: they leave with the speed of their branch and do not sway with the tree.
+- `enablePointer` works too: the pointer gives the whole tree a push that decays on its own, more the higher it touches. `treeMotion` and `motionStrength` control it. Picking uses the tree's meshes at rest. Thin branches are hard to hit, so you can add a hidden mesh named `collider*` (e.g. a rough hull of the crown) for picking. `shakeAll` is for rigged trees only.
+- The GLB's materials (`MeshStandardMaterial` and the like) are replaced by their Node equivalents, with every property and texture copied over (the same conversion three's renderer does on its own), plus a `positionNode`. Each tree gets its own copies. `dispose()` puts the original materials back.
+
+All of these change live with `tree.set({ sway: 2, swaySpeed: 1.5, windAngle: 90 })`. Rigged trees ignore `sway` and `swaySpeed`.
+
+### Exporting a static tree from Blender
+
+1. Build the tree without an armature: with Sapling Tree Gen, leave **Armature** off. If the tree already has one, delete the Armature object and its Armature modifier.
+2. With the tree selected, **Object › Convert › Mesh** (Sapling makes curves), then **Shade Smooth**. The leaves are placed using the smooth normals to find each branch's axis.
+3. **Object › Apply › All Transforms**, with the base of the trunk at the origin.
+4. Give it a material. A Principled BSDF with its textures arrives as `MeshStandardMaterial`.
+5. Optional: a hidden `collider` mesh for the pointer, a `leaf_emitter` mesh to choose where leaves grow, or `leaf_anchor` empties to place them by hand.
+6. **File › Export › glTF 2.0**, format `.glb`, **+Y Up** on, and nothing animated (no skinning).
+
+The tree loads as static because it has no bones. `tree.rigged` is `false` and the report says "Árbol estático".
+
+### How many bones
+
+The leaf shaders read the bone matrices from a WebGPU uniform buffer, 64 bytes per bone. WebGPU guarantees 64 KB per uniform buffer (`maxUniformBufferBindingSize`, which three uses unless you request more with `requiredLimits`). That allows about **1000 bones** (1024) in a rigged tree. three's own skinning switches to a bone texture past that limit, but the leaf shaders don't. A large tree is better kept under a few hundred bones, or exported static.
 
 ### Leaf textures
 
 The library ships no leaf images: like the tree's GLB, you supply them.
 
 - `textures` is optional and takes 1 to 5 entries `{ url | texture, weight, name }`. Each leaf picks one when the tree is created, in proportion to the weights; with a single texture every leaf uses it. More than 5 is an error.
-- Images: PNG or WebP with alpha, the stem at the bottom centre, 3:5 proportions (the leaf plane is 0.6 × 1).
-- A `texture` you load yourself is used as it is: set its `colorSpace` to `THREE.SRGBColorSpace`. Textures given by `url` are set up by the library.
-- Without textures (or with `[]`) the leaves use a built-in leaf shape drawn in the shader, with no images. Its color is `params.leafColor` (default `'#4f7a3a'`), changeable at any time with `tree.set({ leafColor: '#b5651d' })`. Shadows follow the leaf shape in both cases.
+- Images: PNG or WebP with alpha, the stem at the bottom centre, any proportion. `leafSize` is the leaf's height and its width follows the image (width / height), so a 280 × 348 image makes a leaf 0.8 times as wide as it is tall. Textures of different proportions can be mixed in one tree.
+- A `texture` you load yourself is used as it is: set its `colorSpace` to `THREE.SRGBColorSpace`. It must already be loaded (e.g. `await loader.loadAsync(url)`), because its proportion is read from its image. Textures given by `url` are set up by the library.
+- Without textures (or with `[]`) the leaves use a built-in leaf shape drawn in the shader, with no images, 0.6 times as wide as it is tall. Its color is `params.leafColor` (default `'#4f7a3a'`), changeable at any time with `tree.set({ leafColor: '#b5651d' })`. Shadows follow the leaf shape in both cases.
 
 ## Tech
 

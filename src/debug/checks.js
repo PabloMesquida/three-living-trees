@@ -6,6 +6,7 @@ import { ROLE_BRANCH } from '../../lib/index.js'
  * Scripted checks, run from the browser console:
  *
  *     await demo.checks.anchors()       attached leaves sit exactly on bone * anchor
+ *     await demo.checks.sway()          static tree: attached leaves follow the wind sway
  *     await demo.checks.lifecycle()     shake -> fall -> regrow, totals always coherent
  *     await demo.checks.determinism()   same seed + same inputs = same buffers
  *     await demo.checks.memory()        many cycles, no growth in GPU resources
@@ -20,13 +21,13 @@ const STEP = 1 / 60
 export function createChecks(demo)
 {
     const { tree } = demo
-    const { asset, anchors, rig, simulation, params } = tree
+    const { asset, anchors, rig, sway, simulation, params } = tree
     const applyParams = () => tree.apply()
 
     // The same push on every branch bone, always identical
     const shake = (strength = 2.6) =>
     {
-        // A static tree cannot be shaken: one decision tick in which half the leaves let go instead
+        // A static tree has no branches to shake one by one: one decision tick in which half the leaves let go instead
         if(!asset.rigged)
         {
             const chance = simulation.uniforms.spontaneousChance
@@ -51,6 +52,11 @@ export function createChecks(demo)
         {
             rig.clearPush()
             rig.update(STEP)
+            if(sway !== null)
+            {
+                sway.clearPush()
+                sway.update(STEP)
+            }
             simulation.step(STEP)
         }
     }
@@ -58,6 +64,7 @@ export function createChecks(demo)
     const restart = () =>
     {
         rig.reset()
+        if(sway !== null) sway.reset()
         simulation.reset()
         advance(1)
     }
@@ -98,9 +105,10 @@ export function createChecks(demo)
     return {
         /**
          * With the tree bent and falling disabled, every leaf must be exactly
-         * where the CPU says its anchor is: bone.matrixWorld * anchor.
+         * where the CPU says its anchor is: bone.matrixWorld * anchor. A
+         * static tree is checked still (its sway has its own check).
          */
-        anchors: () => isolated({ leafFall: false }, async () =>
+        anchors: () => isolated({ leafFall: false, sway: 0 }, async () =>
         {
             restart()
             shake(3)
@@ -135,6 +143,62 @@ export function createChecks(demo)
                 pass: maxError < 1e-3 && (maxDisplacement > 0.01 || !asset.rigged),
                 maxErrorMeters: maxError,
                 maxAnchorDisplacementMeters: maxDisplacement,
+                leaves: simulation.count
+            }
+        }),
+
+        /**
+         * Static tree swaying hard, falling disabled: every attached leaf must
+         * be at its anchor plus the sway displacement, worked out again here
+         * on the CPU from the same formula as TreeSway.displacement().
+         */
+        sway: (amount = 3) => isolated({ leafFall: false, sway: amount }, async () =>
+        {
+            if(sway === null) return { pass: false, reason: 'Árbol con esqueleto: no usa el viento del vertex shader.' }
+
+            restart()
+            advance(137)
+
+            const positions = await simulation.readBuffer(simulation.position)
+            const u = sway.uniforms
+            const time = u.time.value
+            const base = u.base.value
+            const height = u.height.value
+            const direction = u.direction.value
+            const side = new THREE.Vector3(-direction.z, 0, direction.x)
+            const rest = new THREE.Vector3()
+            const leaf = new THREE.Vector3()
+            const offset = new THREE.Vector3()
+            let maxError = 0
+            let maxOffset = 0
+
+            for(let i = 0; i < simulation.count; i++)
+            {
+                rest.fromArray(anchors.position, i * 3).applyMatrix4(asset.root.matrixWorld)
+
+                // Mirror of TreeSway.displacement() (SWAY_SCALE = 0.03)
+                const r = rest.clone().sub(base)
+                const h = Math.max(r.y / height, 0)
+                const spread = (r.x * 0.9 + r.y * 0.35 + r.z * 0.7) / height * 3
+                const gust = Math.pow(Math.sin(time * 0.21) * Math.sin(time * 0.47 + 1.9) * 0.5 + 0.5, 2)
+                const wave = Math.sin(time * 1.25 - spread) * 0.55 + Math.sin(time * 2.7 + 0.8 - spread * 1.7) * 0.2
+                const flutter = Math.sin(time * 4.3 + spread * 4.1) * (gust + 0.3) * 0.08
+                const along = gust * 0.65 + 0.35 + wave * (gust + 0.5) + flutter
+                const across = Math.sin(time * 0.83 + 2.1 - spread) * 0.25
+
+                offset.copy(direction).multiplyScalar(along).addScaledVector(side, across)
+                    .multiplyScalar(u.amount.value * 0.03 * height)
+                    .add(u.push.value)
+                    .multiplyScalar(h * h)
+
+                maxOffset = Math.max(maxOffset, offset.length())
+                maxError = Math.max(maxError, leaf.fromArray(positions, i * 4).distanceTo(rest.add(offset)))
+            }
+
+            return {
+                pass: maxError < 1e-3 && maxOffset > 0.01,
+                maxErrorMeters: maxError,
+                maxSwayMeters: maxOffset,
                 leaves: simulation.count
             }
         }),

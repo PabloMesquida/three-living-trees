@@ -20,12 +20,14 @@ export class DebugUI
         this.element = document.getElementById('counters')
         this.element.hidden = false
 
-        // Only a rigged tree can move
-        if(tree.rigged)
+        // The pointer pushes either kind of tree; only a static one sways in the wind
+        const motion = renderer.inspector.createParameters('Árbol')
+        motion.add(params, 'treeMotion').name('movimiento').onChange(onChange)
+        motion.add(params, 'motionStrength', 0, 3, 0.01).name('fuerza').onChange(onChange)
+        if(!tree.rigged)
         {
-            const motion = renderer.inspector.createParameters('Árbol')
-            motion.add(params, 'treeMotion').name('movimiento').onChange(onChange)
-            motion.add(params, 'motionStrength', 0, 3, 0.01).name('fuerza').onChange(onChange)
+            motion.add(params, 'sway', 0, 5, 0.05).name('vaivén').onChange(onChange)
+            motion.add(params, 'swaySpeed', 0, 4, 0.05).name('velocidad vaivén').onChange(onChange)
         }
 
         const leaves = renderer.inspector.createParameters('Hojas')
@@ -33,12 +35,9 @@ export class DebugUI
         leaves.add(params, 'leafFall').name('caída').onChange(onChange)
         leaves.add(params, 'spontaneousFall', 0, 1, 0.01).name('caída espontánea').onChange(onChange)
         leaves.add(params, 'regeneration').name('regeneración').onChange(onChange)
-        if(tree.rigged)
-        {
-            leaves.add(params, 'detachProbability', 0, 1, 0.01).name('prob. desprendimiento').onChange(onChange)
-            leaves.add(params, 'detachThreshold', 0.1, 6, 0.05).name('umbral de sacudida').onChange(onChange)
-            leaves.add(params, 'gripVariation', 0, 6, 0.1).name('variación del agarre').onChange(onChange)
-        }
+        leaves.add(params, 'detachProbability', 0, 1, 0.01).name('prob. desprendimiento').onChange(onChange)
+        leaves.add(params, 'detachThreshold', 0.1, 6, 0.05).name('umbral de sacudida').onChange(onChange)
+        leaves.add(params, 'gripVariation', 0, 6, 0.1).name('variación del agarre').onChange(onChange)
         leaves.add(params, 'gravity', 0, 15, 0.1).name('gravedad').onChange(onChange)
         leaves.add(params, 'windStrength', 0, 4, 0.05).name('viento').onChange(onChange)
         leaves.add(params, 'windAngle', -180, 180, 1).name('dirección viento').onChange(onChange)
