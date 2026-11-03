@@ -2,22 +2,12 @@ import * as THREE from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
 import { color, mix, smoothstep, uv } from 'three/tsl'
-import { leafTextureDistribution, options, params } from './config.js'
+import { LeafTree } from '../lib/index.js'
+import { options, sceneParams } from './config.js'
 import { createProceduralTree } from './tree/ProceduralTree.js'
-import { loadGlbTree } from './tree/GlbTree.js'
-import { BranchRig } from './rig/BranchRig.js'
-import { BoneState } from './rig/BoneState.js'
-import { generateAnchors, orientAnchors } from './anchors/AnchorSet.js'
-import { LeafSimulation, spontaneousChance } from './leaves/LeafSimulation.js'
-import { LeafRenderer } from './leaves/LeafRenderer.js'
-import { LEAF_TEXTURES, loadLeafTextures } from './leaves/leafTextures.js'
-import { assignVariants } from './leaves/textureVariants.js'
-import { PointerInteraction } from './interaction/PointerInteraction.js'
 import { DebugUI } from './debug/DebugUI.js'
 import { BasicPanel } from './ui/BasicPanel.js'
 import { createChecks } from './debug/checks.js'
-
-const MAX_DELTA = 1 / 30
 
 const fail = (message) =>
 {
@@ -33,7 +23,8 @@ async function main()
 
     /**
      * WebGPU, and nothing else. three falls back to WebGL 2 on its own when
-     * WebGPU is missing, so it is checked before and after creating the renderer.
+     * WebGPU is missing, so it is checked before creating the renderer (and
+     * LeafTree.create() checks it again after).
      */
     if(!navigator.gpu)
     {
@@ -59,45 +50,41 @@ async function main()
     renderer.setSize(window.innerWidth, window.innerHeight)
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFShadowMap
-    await renderer.init()
-
-    if(renderer.backend.isWebGPUBackend !== true)
-        return fail('El renderer no ha podido arrancar con WebGPU y ha intentado usar WebGL. La demo se detiene: necesita cómputo en GPU.')
 
     /**
-     * Scene
+     * Tree: a GLB or the provisional procedural one, both through the library
      */
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x1b2126)
-
-    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100)
-
-    scene.add(new THREE.HemisphereLight(0xdfeaff, 0x3a3226, 1.6))
-    const sun = new THREE.DirectionalLight(0xfff1dd, 2.2)
-    sun.position.set(3, 6, 4)
-    scene.add(sun)
-
-    /**
-     * Tree: provisional or GLB, same contract either way (see TreeAsset.js)
-     */
-    let asset
+    let tree
     try
     {
-        asset = options.tree === 'glb' ? await loadGlbTree(options.glb) : createProceduralTree(options.seed)
+        tree = await LeafTree.create(renderer, {
+            ...(options.tree === 'glb' ? { url: options.glb } : { object: createProceduralTree(options.seed) }),
+            count: options.count,
+            capacity: options.capacity,
+            seed: options.seed
+        })
     }
     catch(error)
     {
         console.error(error)
         return fail(`No se ha podido preparar el árbol.\n\n${error.message}`)
     }
+    console.info(`[tree]\n  ${tree.report.join('\n  ')}`)
 
-    scene.add(asset.root)
-    for(const mesh of asset.skinnedMeshes)
-    {
-        mesh.castShadow = true
-        mesh.receiveShadow = true
-    }
-    console.info(`[tree]\n  ${asset.report.join('\n  ')}`)
+    const { asset } = tree
+
+    /**
+     * Scene
+     */
+    const scene = new THREE.Scene()
+    scene.background = new THREE.Color(0x1b2126)
+    scene.add(tree.object)
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100)
+
+    scene.add(new THREE.HemisphereLight(0xdfeaff, 0x3a3226, 1.6))
+    const sun = new THREE.DirectionalLight(0xfff1dd, 2.2)
+    scene.add(sun)
 
     // Ground: a lighter pool under the tree that darkens outwards and fades
     // into the background, so the floor has no visible edge
@@ -139,112 +126,28 @@ async function main()
     controls.maxPolarAngle = Math.PI * 0.52
     controls.update()
 
-    /**
-     * Rig -> anchors -> particles
-     */
-    let anchors
-    try
-    {
-        // Anchors for the full capacity. They are independent random samples, so
-        // the first N of them are an even spread too: showing fewer leaves just
-        // shows a prefix
-        anchors = generateAnchors(asset, options.capacity, options.seed)
-    }
-    catch(error)
-    {
-        console.error(error)
-        return fail(`No se han podido generar los anclajes de las hojas.\n\n${error.message}`)
-    }
-    console.info(`[anchors] ${anchors.count} anclajes, ${anchors.source}`)
-
-    // Explicit anchors in a GLB fix the capacity: there cannot be more leaves than anchors
-    params.leafCount = Math.min(params.leafCount, anchors.count)
-
-    const rig = new BranchRig(asset, options.seed)
-    const boneState = new BoneState(asset, rig)
-    const simulation = new LeafSimulation(renderer, anchors, boneState, options.seed)
-    let leafTextures
-    try
-    {
-        leafTextures = await loadLeafTextures()
-    }
-    catch(error)
-    {
-        console.error(error)
-        return fail(error.message)
-    }
-    const variantKeys = Object.keys(LEAF_TEXTURES)
-    const leafVariants = assignVariants(anchors.count, leafTextureDistribution, variantKeys, options.seed)
-    const variantCounts = variantKeys.map((key, index) => `${key} ${leafVariants.reduce((sum, v) => sum + (v === index ? 1 : 0), 0)}`)
-    console.info(`[leaves] texturas por hoja: ${variantCounts.join(', ')}`)
-
-    const leafRenderer = new LeafRenderer(simulation, boneState, leafTextures, leafVariants)
-    leafRenderer.leaves.castShadow = true
-    leafRenderer.leaves.receiveShadow = true
-    scene.add(leafRenderer.leaves, leafRenderer.anchors)
-
-    const pointer = new PointerInteraction(canvas, camera, asset, rig)
+    tree.enablePointer(canvas, camera)
 
     /**
-     * Parameters -> rig, uniforms, visibility
+     * Settings: the tree's own (tree.set / tree.apply) plus the demo's scene
      */
-    let orientationKey = ''
-
-    const applyParams = () =>
+    const applyScene = () =>
     {
-        // Leaf orientation: rebuilt only when one of its parameters changed
-        const orientation = {
-            angle: params.leafAngle,
-            angleVariation: params.leafAngleVariation,
-            roll: params.leafRoll,
-            rollVariation: params.leafRollVariation,
-            upward: params.leafUpward
-        }
-        const key = JSON.stringify(orientation)
-        if(key !== orientationKey && orientAnchors(anchors, orientation))
-            simulation.setAnchorQuaternions(anchors.quaternion)
-        orientationKey = key
-
-        const u = simulation.uniforms
-        const angle = THREE.MathUtils.degToRad(params.windAngle)
-
-        simulation.setActiveCount(params.leafCount)
-        leafRenderer.leaves.count = simulation.count
-        leafRenderer.anchors.count = simulation.count
-
-        rig.enabled = params.treeMotion
-        rig.strength = params.motionStrength
-
-        u.fallEnabled.value = params.leafFall ? 1 : 0
-        u.regenEnabled.value = params.regeneration ? 1 : 0
-        u.detachProbability.value = params.detachProbability
-        u.detachThreshold.value = params.detachThreshold
-        u.gripSpread.value = params.gripVariation
-        u.spontaneousChance.value = spontaneousChance(params.spontaneousFall)
-        u.gravity.value = params.gravity
-        u.wind.value.set(Math.cos(angle), 0, -Math.sin(angle)).multiplyScalar(params.windStrength)
-        u.growDuration.value = params.growDuration
-        u.groundY.value = asset.groundY
-
-        leafRenderer.uniforms.size.value = params.leafSize * (asset.height / 3.6)
-        leafRenderer.uniforms.stateColors.value = params.stateColors ? 1 : 0
-        leafRenderer.anchors.visible = params.showAnchors
-        sun.castShadow = params.shadows
+        sun.castShadow = sceneParams.shadows
     }
+    applyScene()
 
-    const reset = () =>
+    const onChange = () =>
     {
-        rig.reset()
-        simulation.reset()
+        tree.apply()
+        applyScene()
     }
-
-    applyParams()
 
     // Full settings with #debug, only the basics without it. Adding or removing
     // #debug reloads the page, since the two interfaces are built once.
     const ui = options.debug
-        ? new DebugUI({ renderer, asset, anchors, rig, simulation, leafRenderer, pointer, onChange: applyParams, onReset: reset })
-        : new BasicPanel({ rig, simulation, onChange: applyParams, onReset: reset })
+        ? new DebugUI({ renderer, tree, onChange })
+        : new BasicPanel({ tree, onChange })
     window.addEventListener('hashchange', () => window.location.reload())
 
     /**
@@ -259,11 +162,9 @@ async function main()
     })
 
     /**
-     * Loop. The order is what keeps the rig and the GPU buffers in step:
-     *   1. pointer  -> pushes on the rig (ray cast against last frame's pose)
-     *   2. rig      -> bone quaternions for this frame
-     *   3. leaves   -> bone matrices to the GPU, then the compute pass
-     *   4. render   -> skinned mesh and leaves drawn from the same bone matrices
+     * Loop. tree.update() keeps the rig and the GPU buffers in step:
+     *   pointer -> rig -> bone matrices to the GPU -> compute pass,
+     * then the render draws the skinned mesh and the leaves from the same bone matrices.
      */
     const timer = new THREE.Timer()
     timer.connect(document)
@@ -273,23 +174,17 @@ async function main()
     renderer.setAnimationLoop(() =>
     {
         timer.update()
-        const deltaTime = Math.min(timer.getDelta(), MAX_DELTA)
+        const deltaTime = timer.getDelta()
 
         controls.update()
-
-        if(!state.paused)
-        {
-            pointer.update(deltaTime)
-            rig.update(deltaTime)
-            simulation.step(deltaTime)
-        }
+        if(!state.paused) tree.update(deltaTime)
 
         renderer.render(scene, camera)
         ui.update(deltaTime)
     })
 
     // Console access and scripted checks: `demo.checks.determinism()`, etc.
-    window.demo = { renderer, scene, camera, asset, anchors, rig, boneState, simulation, leafRenderer, leafTextures, leafVariants, pointer, params, applyParams, reset, state }
+    window.demo = { renderer, scene, camera, tree, sceneParams, state }
     window.demo.checks = createChecks(window.demo)
 }
 

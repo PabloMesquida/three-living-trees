@@ -4,6 +4,9 @@
  *
  * count     leaves shown when the page opens
  * maxCount  how many leaves the GPU buffers hold: the most the panel slider can show
+ *
+ * The live parameters of the tree and its leaves are the library's
+ * (DEFAULT_PARAMS in lib/LeafTree.js), reached through tree.params.
  */
 const query = new URLSearchParams(window.location.search)
 
@@ -30,50 +33,8 @@ export const options = {
 }
 
 /**
- * How often each leaf texture appears (textures listed in leaves/leafTextures.js).
- * Each leaf picks one when the page loads and keeps it. The numbers are
- * percentages; if they do not add up to 100 they are scaled proportionally.
- * 0 disables a variant. Negative values or all zeros fall back to equal shares.
+ * Scene settings of the demo itself (not part of the library).
  */
-export const leafTextureDistribution = {
-    variant1: 30, // dark green, dense
-    variant2: 25, // olive green, thin and sparse
-    variant3: 20, // blue green, compact
-    variant4: 15, // green and yellow, dry
-    variant5: 10 // grey green, cold and aged
-}
-
-/**
- * Live parameters, tweakable from the debug UI.
- */
-export const params = {
-    // Tree
-    treeMotion: true,
-    motionStrength: 1,
-
-    // Leaves
-    leafCount: count, // leaves shown, from 0 to options.capacity
-    leafFall: true,
-    spontaneousFall: 0, // 0..1: leaves falling on their own, from one at a time (low) to all together (1)
-    regeneration: true,
-    detachProbability: 0.25, // chance per decision tick for a leaf whose branch shakes past its grip
-    detachThreshold: 0.5, // branch shake (rad/s) under which no leaf lets go
-    gripVariation: 0.5, // each leaf needs between 1x and (1 + this)x the threshold: low enough that every leaf can fall
-    gravity: 4,
-    windStrength: 0.6,
-    windAngle: 20, // degrees around Y, 0 = +X
-    growDuration: 1.5,
-    leafSize: 0.17,
-
-    // Leaf orientation (sampled anchors), see orientAnchors() in anchors/AnchorSet.js
-    leafAngle: 40, // degrees from the branch axis: 0 = along the branch, 90 = straight out
-    leafAngleVariation: 12,
-    leafRoll: 0, // degrees around the leaf's own axis
-    leafRollVariation: 25,
-    leafUpward: 0.2, // 0..1, bend towards the sky
-
-    // Debug
-    shadows: true,
-    showAnchors: false,
-    stateColors: false
+export const sceneParams = {
+    shadows: true
 }

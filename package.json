@@ -1,17 +1,31 @@
 {
-  "name": "tree-leaf-particles-demo",
+  "name": "tree-demo",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "description": "Trees whose leaves grow, fall and grow back, simulated on the GPU with Three.js WebGPU",
   "type": "module",
+  "exports": {
+    ".": "./lib/index.js",
+    "./textures/*": "./lib/textures/*"
+  },
+  "files": [
+    "lib"
+  ],
+  "sideEffects": false,
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
-  "dependencies": {
-    "three": "0.186.1"
+  "peerDependencies": {
+    "three": "^0.186.1"
   },
   "devDependencies": {
+    "three": "0.186.1",
     "vite": "8.3.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PabloMesquida/tree-demo.git"
   }
 }

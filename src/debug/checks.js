@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { options } from '../config.js'
-import { ROLE_BRANCH } from '../tree/TreeAsset.js'
+import { ROLE_BRANCH } from '../../lib/index.js'
 
 /**
  * Scripted checks, run from the browser console:
@@ -19,11 +19,24 @@ const STEP = 1 / 60
 
 export function createChecks(demo)
 {
-    const { asset, anchors, rig, simulation, params, applyParams } = demo
+    const { tree } = demo
+    const { asset, anchors, rig, simulation, params } = tree
+    const applyParams = () => tree.apply()
 
     // The same push on every branch bone, always identical
     const shake = (strength = 2.6) =>
     {
+        // A static tree cannot be shaken: one decision tick in which half the leaves let go instead
+        if(!asset.rigged)
+        {
+            const chance = simulation.uniforms.spontaneousChance
+            const saved = chance.value
+            chance.value = 0.5
+            advance(3)
+            chance.value = saved
+            return
+        }
+
         for(let i = 0; i < rig.count; i++)
         {
             if(asset.roles[i] !== ROLE_BRANCH) continue
@@ -119,7 +132,7 @@ export function createChecks(demo)
             }
 
             return {
-                pass: maxError < 1e-3 && maxDisplacement > 0.01,
+                pass: maxError < 1e-3 && (maxDisplacement > 0.01 || !asset.rigged),
                 maxErrorMeters: maxError,
                 maxAnchorDisplacementMeters: maxDisplacement,
                 leaves: simulation.count

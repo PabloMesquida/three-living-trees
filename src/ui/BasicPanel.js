@@ -1,13 +1,12 @@
-import { params } from '../config.js'
-
 /**
  * The small panel shown without #debug: number of leaves, falling,
  * regrowth, reset and shake. Everything else lives in DebugUI (#debug).
  */
 export class BasicPanel
 {
-    constructor({ rig, simulation, onChange, onReset })
+    constructor({ tree, onChange })
     {
+        const { params } = tree
         const element = document.getElementById('basic-panel')
         element.hidden = false
 
@@ -36,7 +35,7 @@ export class BasicPanel
             return label
         }
 
-        const countLabel = slider('leafCount', 'hojas', 0, simulation.capacity, 1, (value) => value)
+        const countLabel = slider('leafCount', 'hojas', 0, tree.capacity, 1, (value) => value)
         const spontaneousLabel = slider('spontaneousFall', 'caída sola', 0, 1, 0.01, (value) => `${Math.round(value * 100)} %`)
 
         // Toggles
@@ -69,10 +68,9 @@ export class BasicPanel
         }
         const actions = document.createElement('div')
         actions.className = 'actions'
-        actions.append(
-            button('reiniciar', onReset),
-            button('sacudir todo', () => rig.shakeAll())
-        )
+        actions.append(button('reiniciar', () => tree.reset()))
+        // A static tree has no branches to shake
+        if(tree.rigged) actions.append(button('sacudir todo', () => tree.shakeAll()))
 
         element.append(countLabel, spontaneousLabel, toggle('leafFall', 'caída'), toggle('regeneration', 'regeneración'), actions)
     }

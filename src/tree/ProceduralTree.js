@@ -1,7 +1,6 @@
 import * as THREE from 'three/webgpu'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { createRandom } from '../utils/random.js'
-import { buildTreeAsset } from './TreeAsset.js'
+import { createRandom } from '../../lib/utils/random.js'
 
 /**
  * Provisional tree: a throwaway stand-in for the Blender model.
@@ -9,7 +8,7 @@ import { buildTreeAsset } from './TreeAsset.js'
  * It is deliberately built the same way the GLB is expected to arrive: one
  * armature, bones named trunk_NN / branch_NN_NN whose local +Y runs along the
  * bone (Blender's convention), and a single SkinnedMesh weighted to them.
- * It then goes through the very same buildTreeAsset() scan as a GLB.
+ * The library then scans it exactly like a GLB (lib/tree/TreeAsset.js).
  */
 
 const UP = new THREE.Vector3(0, 1, 0)
@@ -22,7 +21,7 @@ export function createProceduralTree(seed)
     const random = createRandom(seed * 7919 + 13)
 
     const root = new THREE.Group()
-    root.name = 'tree_root'
+    root.name = `árbol provisional (semilla ${seed})`
 
     const armature = new THREE.Group()
     armature.name = 'tree_armature'
@@ -168,5 +167,5 @@ export function createProceduralTree(seed)
     root.add(mesh)
     mesh.bind(new THREE.Skeleton(bones))
 
-    return buildTreeAsset(root, `árbol provisional (semilla ${seed})`)
+    return root
 }
