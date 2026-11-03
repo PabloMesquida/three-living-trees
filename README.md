@@ -22,8 +22,10 @@ Open the address Vite prints (by default `http://localhost:5173/`).
 ## Use it as a library
 
 ```bash
-npm install three@0.186.1 github:PabloMesquida/tree-demo
+npm install three github:PabloMesquida/tree-demo#v0.2.0
 ```
+
+Works with three 0.186.1 or newer (tested with 0.186.1 and 0.187.0).
 
 ```js
 import * as THREE from 'three/webgpu'
