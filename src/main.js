@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
 import { color, mix, smoothstep, uv } from 'three/tsl'
 import { LeafTree } from '../lib/index.js'
-import { options, sceneParams } from './config.js'
+import { leafTextures, options, sceneParams } from './config.js'
 import { createProceduralTree } from './tree/ProceduralTree.js'
 import { DebugUI } from './debug/DebugUI.js'
 import { BasicPanel } from './ui/BasicPanel.js'
@@ -61,7 +61,8 @@ async function main()
             ...(options.tree === 'glb' ? { url: options.glb } : { object: createProceduralTree(options.seed) }),
             count: options.count,
             capacity: options.capacity,
-            seed: options.seed
+            seed: options.seed,
+            textures: leafTextures.slice(0, options.textures)
         })
     }
     catch(error)

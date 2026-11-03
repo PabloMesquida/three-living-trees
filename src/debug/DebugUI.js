@@ -44,6 +44,8 @@ export class DebugUI
         leaves.add(params, 'windAngle', -180, 180, 1).name('dirección viento').onChange(onChange)
         leaves.add(params, 'growDuration', 0.1, 6, 0.1).name('duración crecimiento').onChange(onChange)
         leaves.add(params, 'leafSize', 0.02, 0.5, 0.005).name('escala hojas').onChange(onChange)
+        // The color only drives the built-in leaf, drawn when there are no textures
+        if(tree.textures.length === 0) leaves.addColor(params, 'leafColor').name('color hojas').onChange(onChange)
 
         // Only sampled anchors can be reoriented; explicit ones keep their Blender orientation
         if(tree.anchors.frame !== null)

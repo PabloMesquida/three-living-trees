@@ -1,12 +1,11 @@
 {
   "name": "tree-demo",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Trees whose leaves grow, fall and grow back, simulated on the GPU with Three.js WebGPU",
   "type": "module",
   "exports": {
-    ".": "./lib/index.js",
-    "./textures/*": "./lib/textures/*"
+    ".": "./lib/index.js"
   },
   "files": [
     "lib"
