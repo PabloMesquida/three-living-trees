@@ -51,8 +51,8 @@ async function main()
     renderer.shadowMap.type = THREE.PCFShadowMap
 
     /**
-     * Trees: a GLB or the provisional procedural one, with or without bones,
-     * one or several, all through the library (see tree/forest.js)
+     * Trees: a GLB with or without bones, one or several, all through the
+     * library (see tree/forest.js)
      */
     let trees, bounds
     try

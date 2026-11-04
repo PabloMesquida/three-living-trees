@@ -23,14 +23,12 @@ Every kind of tree the library supports can be tried, alone or several at once:
 
 | Kind | URL | Trees | What it does |
 | --- | --- | --- | --- |
-| GLB with bones (default) | `?tree=glb&bones=1` | up to 4 | Branches the pointer shakes. The rig runs on the CPU and the skinning on the GPU, per tree |
-| GLB without bones | `?tree=glb&bones=0` | up to 16 | The same model, with its armature stripped at load as if exported without one. Sways in the wind on the GPU; the pointer pushes the crown |
-| Provisional with bones | `?tree=procedural&bones=1` | up to 4 | A tree built in code, a different one per tree |
-| Provisional without bones | `?tree=procedural&bones=0` | up to 16 | The same, static |
+| With bones (default) | `?bones=1` | up to 6 | Branches the pointer shakes. The rig runs on the CPU and the skinning on the GPU, per tree |
+| Without bones | `?bones=0` | up to 24 | The same model, with its armature stripped at load as if exported without one. Sways in the wind on the GPU; the pointer pushes the crown |
 
-- `?trees=N` sets how many. They stand on a grid, each turned and scaled a little, with its own seed. A GLB is loaded once and cloned, and the leaf textures are loaded once and shared.
-- The limits are what kept a similar frame time on the machine this was built on: 4 trees with bones (about 9 ms of CPU and 18 ms per frame) cost about as much as 16 without (7 ms and 15 ms).
-- Leaves are per tree: 5000 by default, fewer as trees are added (20 000 in all). `?count=` and `?maxCount=` change them. The panels' settings apply to every tree.
+- `?trees=N` sets how many. They stand on a grid, each turned and scaled a little, with its own seed. The GLB is loaded once and cloned, and the leaf textures are loaded once and shared.
+- The limits are what kept a similar frame time on the machine this was built on, at 1923×909: 6 trees with bones (about 11 ms of CPU and 24 ms per frame) cost about as much as 24 without (10 ms and 23 ms).
+- Leaves are per tree: 5000 by default, fewer past 4 trees (20 000 in all). `?count=` and `?maxCount=` change them. The panels' settings apply to every tree.
 - `?textures=1` uses a single leaf texture, `?textures=0` none (the built-in leaf).
 
 ## Use it as a library

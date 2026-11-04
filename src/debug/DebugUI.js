@@ -18,7 +18,7 @@ const STRINGS = {
     en: {
         scene: 'Scene',
         kind: 'tree',
-        kinds: ['GLB with bones', 'GLB without bones', 'provisional with bones', 'provisional without bones'],
+        kinds: ['with bones', 'without bones'],
         trees: (max) => `trees (max. ${max})`,
         textures: 'textures (0 = built-in leaf)',
         capacity: 'max. leaves per tree',
@@ -67,13 +67,12 @@ const STRINGS = {
         bones: 'bones',
         windOnGpu: 'wind on GPU',
         leavesOf: (active, capacity) => `leaves ${active} of ${capacity}`,
-        noArmature: 'the GLB has no armature: it is static',
-        provisional: 'provisional tree'
+        noArmature: 'the GLB has no armature: it is static'
     },
     es: {
         scene: 'Escena',
         kind: 'árbol',
-        kinds: ['GLB con huesos', 'GLB sin huesos', 'provisional con huesos', 'provisional sin huesos'],
+        kinds: ['con huesos', 'sin huesos'],
         trees: (max) => `árboles (máx. ${max})`,
         textures: 'texturas (0 = hoja propia)',
         capacity: 'máx. hojas por árbol',
@@ -122,13 +121,12 @@ const STRINGS = {
         bones: 'huesos',
         windOnGpu: 'viento en GPU',
         leavesOf: (active, capacity) => `hojas ${active} de ${capacity}`,
-        noArmature: 'el GLB no tiene esqueleto: es estático',
-        provisional: 'árbol provisional'
+        noArmature: 'el GLB no tiene esqueleto: es estático'
     }
 }
 
-// Kinds of tree, in the order of STRINGS.*.kinds: source (?tree) and armature (?bones)
-const KIND_VALUES = ['glb:1', 'glb:0', 'procedural:1', 'procedural:0']
+// Kinds of tree, in the order of STRINGS.*.kinds: the value of ?bones
+const KIND_VALUES = ['1', '0']
 
 const range = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => from + i)
 
@@ -150,7 +148,7 @@ export class DebugUI
 
         // Scene: anything that sizes buffers or builds trees reloads the page
         const scene = {
-            kind: `${options.tree}:${tree.rigged ? 1 : 0}`, // what loaded, not what the URL asked for
+            kind: tree.rigged ? '1' : '0', // what loaded, not what the URL asked for
             trees: options.trees,
             textures: options.textures,
             capacity: options.capacity,
@@ -159,9 +157,8 @@ export class DebugUI
         const sceneGroup = renderer.inspector.createParameters(t.scene)
         sceneGroup.add(scene, 'kind', Object.fromEntries(t.kinds.map((label, i) => [label, KIND_VALUES[i]]))).name(t.kind).onChange(() =>
         {
-            const [source, bones] = scene.kind.split(':')
-            const limit = (bones === '1' ? TREE_LIMITS.rigged : TREE_LIMITS.static).maxTrees
-            reloadWith({ tree: source, bones, trees: Math.min(options.trees, limit) })
+            const limit = (scene.kind === '1' ? TREE_LIMITS.rigged : TREE_LIMITS.static).maxTrees
+            reloadWith({ bones: scene.kind, trees: Math.min(options.trees, limit) })
         })
         sceneGroup.add(scene, 'trees', range(1, options.limits.maxTrees)).name(t.trees(options.limits.maxTrees)).onChange(() => reloadWith({ trees: scene.trees }))
         sceneGroup.add(scene, 'textures', range(0, 5)).name(t.textures).onChange(() => reloadWith({ textures: scene.textures }))
@@ -259,7 +256,6 @@ export class DebugUI
         const hovered = hovering === undefined ? '—' : (hovering.rigged ? hovering.asset.bones[hovering.pointer.hoveredBone].name : t.crown)
         const maxShake = Math.max(...trees.map((leafTree) => leafTree.rig.maxShake))
         const bones = trees.reduce((sum, leafTree) => sum + (leafTree.rigged ? leafTree.asset.bones.length : 0), 0)
-        const source = options.tree === 'glb' ? options.glb : t.provisional
 
         this.element.innerHTML =
             `<span class="attached">${t.attached} ${String(counts.attached).padStart(6)}</span>\n` +
@@ -275,6 +271,6 @@ export class DebugUI
             (tree.rigged ? ` · ${t.bones} ${bones}` : ` · ${t.windOnGpu}`) + '\n' +
             (options.bones && !tree.rigged ? `<span class="bad">${t.noArmature}</span>\n` : '') +
             `${t.leavesOf(active, capacity)} · ${this.fps.toFixed(0)} fps\n` +
-            `WebGPU · ${source}</span>`
+            `WebGPU · ${options.glb}</span>`
     }
 }

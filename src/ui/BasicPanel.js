@@ -39,13 +39,12 @@ export class BasicPanel
 
         const kindLabel = select(
             'árbol',
-            [['GLB con huesos', 'glb:1'], ['GLB sin huesos', 'glb:0'], ['provisional con huesos', 'procedural:1'], ['provisional sin huesos', 'procedural:0']],
-            `${options.tree}:${tree.rigged ? 1 : 0}`, // what loaded, not what the URL asked for
-            (value) =>
+            [['con huesos', '1'], ['sin huesos', '0']],
+            tree.rigged ? '1' : '0', // what loaded, not what the URL asked for
+            (bones) =>
             {
-                const [source, bones] = value.split(':')
                 const limit = (bones === '1' ? TREE_LIMITS.rigged : TREE_LIMITS.static).maxTrees
-                reloadWith({ tree: source, bones, trees: Math.min(options.trees, limit) })
+                reloadWith({ bones, trees: Math.min(options.trees, limit) })
             }
         )
         const counts = Array.from({ length: options.limits.maxTrees }, (_, i) => [String(i + 1), String(i + 1)])

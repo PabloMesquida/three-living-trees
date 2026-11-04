@@ -1,8 +1,8 @@
 /**
  * Options that need a page reload (they size the GPU buffers or build the
- * trees) come from the URL:  ?tree=glb&bones=0&trees=6&count=2000&maxCount=4000&seed=7
+ * trees) come from the URL:  ?bones=0&trees=6&count=2000&maxCount=4000&seed=7
  *
- * tree      glb (the GLB below, or ?glb=...) or procedural (the provisional tree)
+ * glb       the tree to load, by default the one below
  * bones     1 keeps the armature: branches the pointer shakes, expensive.
  *           0 strips it at load (as a Blender export without armature would):
  *           a static tree that sways in the wind, cheap. A GLB without an
@@ -28,7 +28,6 @@ const intOption = (name, fallback, min, max) =>
 }
 
 // What the demo shows when the URL says nothing
-const DEFAULT_TREE = 'glb' // 'glb' or 'procedural'
 const DEFAULT_GLB = './models/sapling_test12_b.glb'
 
 /**
@@ -38,8 +37,8 @@ const DEFAULT_GLB = './models/sapling_test12_b.glb'
  * tree only adds a few vertex shader instructions.
  */
 export const TREE_LIMITS = {
-    rigged: { maxTrees: 4, label: 'con huesos' },
-    static: { maxTrees: 16, label: 'sin huesos' }
+    rigged: { maxTrees: 6, label: 'con huesos' },
+    static: { maxTrees: 24, label: 'sin huesos' }
 }
 
 // Leaves: per tree by default, and in total across every tree's buffers
@@ -59,7 +58,6 @@ const capacity = Math.min(
 export const options = {
     // #debug in the URL shows every setting, the counters and the profiler
     debug: window.location.hash.toLowerCase() === '#debug',
-    tree: ['glb', 'procedural'].includes(query.get('tree')) ? query.get('tree') : DEFAULT_TREE,
     glb: query.get('glb') || DEFAULT_GLB,
     bones,
     limits,
@@ -75,15 +73,15 @@ export const options = {
 /**
  * Reload the page with some URL options changed, e.g. reloadWith({ trees: 4 }).
  * Leaf counts go back to their defaults, which depend on the number of trees.
- * Changing the kind of tree also drops ?glb=, back to the demo's GLB.
+ * Changing bones also drops ?glb=, back to the demo's GLB.
  */
 export function reloadWith(changes)
 {
     const next = new URLSearchParams(window.location.search)
     for(const [key, value] of Object.entries(changes)) next.set(key, String(value))
-    // A new kind of tree means the demo's own models: a ?glb= of another file
+    // A new kind of tree means the demo's own model: a ?glb= of another file
     // may not have the armature the kind asks for
-    if('tree' in changes || 'bones' in changes) next.delete('glb')
+    if('bones' in changes) next.delete('glb')
     if('trees' in changes || 'bones' in changes)
     {
         next.delete('count')

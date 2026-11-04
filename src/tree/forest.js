@@ -2,14 +2,13 @@ import * as THREE from 'three/webgpu'
 import { clone as cloneRigged } from 'three/addons/utils/SkeletonUtils.js'
 import { LeafTree, loadLeafTextures, loadTreeScene } from '../../lib/index.js'
 import { createRandom } from '../../lib/utils/random.js'
-import { createProceduralTree } from './ProceduralTree.js'
 import { stripBones } from './stripBones.js'
 
 /**
  * The demo's trees: one or several LeafTree instances of the same kind.
  *
- *   - A GLB is loaded once and cloned (SkeletonUtils.clone keeps each copy's
- *     own skeleton); provisional trees are built one per seed, so they differ.
+ *   - The GLB is loaded once and cloned (SkeletonUtils.clone keeps each copy's
+ *     own skeleton).
  *   - Without bones, the armature is stripped before cloning (stripBones.js).
  *   - Leaf textures are loaded once (with the renderer's anisotropic filtering)
  *     and passed to every tree as textures.
@@ -21,29 +20,20 @@ import { stripBones } from './stripBones.js'
  */
 export async function createForest(renderer, options, leafTextures)
 {
-    const { tree, glb, bones, trees: total, count, capacity, seed } = options
+    const { glb, bones, trees: total, count, capacity, seed } = options
 
     const [template, textures] = await Promise.all([
-        tree === 'glb' ? loadTreeScene(glb) : null,
+        loadTreeScene(glb),
         loadLeafTextures(leafTextures, renderer)
     ])
-    if(template !== null && !bones) stripBones(template)
+    if(!bones) stripBones(template)
     const sharedTextures = textures.map((texture, index) => ({ ...leafTextures[index], url: undefined, texture }))
 
     const objects = []
     for(let i = 0; i < total; i++)
     {
-        let object
-        if(template !== null)
-        {
-            object = i === 0 ? template : (bones ? cloneRigged(template) : template.clone())
-            object.name = total > 1 ? `${glb} #${i + 1}` : glb
-        }
-        else
-        {
-            object = createProceduralTree(seed + i)
-            if(!bones) stripBones(object)
-        }
+        const object = i === 0 ? template : (bones ? cloneRigged(template) : template.clone())
+        object.name = total > 1 ? `${glb} #${i + 1}` : glb
         objects.push(object)
     }
 

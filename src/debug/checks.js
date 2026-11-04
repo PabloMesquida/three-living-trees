@@ -325,8 +325,6 @@ export function createChecks(demo)
          */
         glb: () => isolated({}, async () =>
         {
-            if(options.tree !== 'glb') return { pass: false, reason: 'Carga un GLB primero (?tree=glb).' }
-
             const response = await fetch(options.glb.replace(/\.glb$/i, '.expected.json'))
             if(!response.ok) return { pass: false, reason: 'No hay archivo .expected.json junto al GLB.' }
             const expected = await response.json()

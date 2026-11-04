@@ -7,8 +7,7 @@ import * as THREE from 'three/webgpu'
  * as a static tree (no bones), which sways in its vertex shader.
  *
  * Positions are baked through the skin at rest; normals are kept, which is
- * right as long as the rest pose is the bind pose (true for a fresh export
- * and for the provisional tree).
+ * right as long as the rest pose is the bind pose (true for a fresh export).
  */
 export function stripBones(root)
 {
