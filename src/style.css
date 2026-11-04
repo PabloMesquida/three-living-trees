@@ -129,6 +129,28 @@ body
     color: #8bd17c;
 }
 
+.controls select
+{
+    flex: 1 1 0;
+    width: 0;
+    min-width: 0;
+    padding: 2px 4px;
+    border: 1px solid #3a4650;
+    border-radius: 3px;
+    background: #20282e;
+    color: #cfd8dc;
+    font: inherit;
+    cursor: pointer;
+}
+
+.controls .note
+{
+    color: #7d8a91;
+    line-height: 1.45;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #2b363e;
+}
+
 .controls input[type="checkbox"]
 {
     margin-left: auto;

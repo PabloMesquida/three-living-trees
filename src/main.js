@@ -2,9 +2,8 @@ import * as THREE from 'three/webgpu'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Inspector } from 'three/addons/inspector/Inspector.js'
 import { color, mix, smoothstep, uv } from 'three/tsl'
-import { LeafTree } from '../lib/index.js'
 import { leafTextures, options, sceneParams } from './config.js'
-import { createProceduralTree } from './tree/ProceduralTree.js'
+import { createForest } from './tree/forest.js'
 import { DebugUI } from './debug/DebugUI.js'
 import { BasicPanel } from './ui/BasicPanel.js'
 import { createChecks } from './debug/checks.js'
@@ -52,34 +51,37 @@ async function main()
     renderer.shadowMap.type = THREE.PCFShadowMap
 
     /**
-     * Tree: a GLB or the provisional procedural one, both through the library
+     * Trees: a GLB or the provisional procedural one, with or without bones,
+     * one or several, all through the library (see tree/forest.js)
      */
-    let tree
+    let trees, bounds
     try
     {
-        tree = await LeafTree.create(renderer, {
-            ...(options.tree === 'glb' ? { url: options.glb } : { object: createProceduralTree(options.seed) }),
-            count: options.count,
-            capacity: options.capacity,
-            seed: options.seed,
-            textures: leafTextures.slice(0, options.textures)
-        })
+        ({ trees, bounds } = await createForest(renderer, options, leafTextures.slice(0, options.textures)))
     }
     catch(error)
     {
         console.error(error)
         return fail(`No se ha podido preparar el árbol.\n\n${error.message}`)
     }
-    console.info(`[tree]\n  ${tree.report.join('\n  ')}`)
+    const tree = trees[0] // the panels' parameters are this tree's, copied to the others
+    console.info(`[tree] ${trees.length} × ${options.bones ? 'con huesos' : 'sin huesos'}\n  ${tree.report.join('\n  ')}`)
 
-    const { asset } = tree
+    // The whole group: ground at the lowest base, height of the tallest tree,
+    // and how far the trees spread from the centre (nothing for a single tree,
+    // which keeps the framing it always had)
+    const groundY = bounds.min.y
+    const height = bounds.max.y - bounds.min.y
+    const several = trees.length > 1
+    const spread = several ? Math.hypot(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) * 0.5 : 0
+    const reach = Math.max(height * 0.9, spread + height * 0.15)
 
     /**
      * Scene
      */
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x1b2126)
-    scene.add(tree.object)
+    for(const leafTree of trees) scene.add(leafTree.object)
 
     const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100)
 
@@ -95,42 +97,46 @@ async function main()
     groundMaterial.opacityNode = smoothstep(0.45, 1, groundDistance).oneMinus()
 
     const ground = new THREE.Mesh(
-        new THREE.CircleGeometry(asset.height * 3, 96).rotateX(-Math.PI * 0.5),
+        new THREE.CircleGeometry(Math.max(height * 3, spread + height * 2), 96).rotateX(-Math.PI * 0.5),
         groundMaterial
     )
     ground.renderOrder = -1
-    ground.position.y = asset.groundY
+    ground.position.y = groundY
     ground.receiveShadow = true
     scene.add(ground)
 
-    // Shadows: the sun keeps its direction; its shadow camera is fitted to the tree
-    const centre = new THREE.Vector3(0, asset.groundY + asset.height * 0.5, 0)
+    // Shadows: the sun keeps its direction; its shadow camera is fitted to the trees
+    const centre = several
+        ? new THREE.Vector3((bounds.min.x + bounds.max.x) * 0.5, groundY + height * 0.5, (bounds.min.z + bounds.max.z) * 0.5)
+        : new THREE.Vector3(0, groundY + height * 0.5, 0)
+    const sunDistance = height * 2 + spread
     sun.target.position.copy(centre)
-    sun.position.copy(centre).addScaledVector(new THREE.Vector3(3, 6, 4).normalize(), asset.height * 2)
+    sun.position.copy(centre).addScaledVector(new THREE.Vector3(3, 6, 4).normalize(), sunDistance)
     scene.add(sun.target)
     sun.castShadow = true
-    sun.shadow.mapSize.set(2048, 2048)
-    sun.shadow.camera.left = -asset.height * 0.9
-    sun.shadow.camera.right = asset.height * 0.9
-    sun.shadow.camera.top = asset.height * 0.9
-    sun.shadow.camera.bottom = -asset.height * 0.9
-    sun.shadow.camera.near = asset.height * 0.5
-    sun.shadow.camera.far = asset.height * 3.5
+    sun.shadow.mapSize.setScalar(several ? 4096 : 2048)
+    sun.shadow.camera.left = -reach
+    sun.shadow.camera.right = reach
+    sun.shadow.camera.top = reach
+    sun.shadow.camera.bottom = -reach
+    sun.shadow.camera.near = Math.max(sunDistance - height * 1.5 - spread, height * 0.1)
+    sun.shadow.camera.far = sunDistance + height * 1.5 + spread
     sun.shadow.radius = 3
     sun.shadow.bias = -0.0005
-    sun.shadow.normalBias = asset.height * 0.004
+    sun.shadow.normalBias = height * 0.004
 
-    camera.position.set(0, asset.groundY + asset.height * 0.62, asset.height * 2.3)
+    camera.position.set(centre.x, groundY + height * 0.62 + spread * 0.3, centre.z + height * 2.3 + spread)
     const controls = new OrbitControls(camera, canvas)
-    controls.target.set(0, asset.groundY + asset.height * 0.5, 0)
+    controls.target.copy(centre)
     controls.enableDamping = true
     controls.maxPolarAngle = Math.PI * 0.52
     controls.update()
 
-    tree.enablePointer(canvas, camera)
+    for(const leafTree of trees) leafTree.enablePointer(canvas, camera)
 
     /**
-     * Settings: the tree's own (tree.set / tree.apply) plus the demo's scene
+     * Settings: the trees' own (tree.set / tree.apply) plus the demo's scene.
+     * The panels edit the first tree's params; every other tree copies them.
      */
     const applyScene = () =>
     {
@@ -140,15 +146,19 @@ async function main()
 
     const onChange = () =>
     {
-        tree.apply()
+        for(const leafTree of trees)
+        {
+            if(leafTree !== tree) Object.assign(leafTree.params, tree.params)
+            leafTree.apply()
+        }
         applyScene()
     }
 
     // Full settings with #debug, only the basics without it. Adding or removing
     // #debug reloads the page, since the two interfaces are built once.
     const ui = options.debug
-        ? new DebugUI({ renderer, tree, onChange })
-        : new BasicPanel({ tree, onChange })
+        ? new DebugUI({ renderer, trees, onChange })
+        : new BasicPanel({ trees, onChange })
     window.addEventListener('hashchange', () => window.location.reload())
 
     /**
@@ -178,14 +188,15 @@ async function main()
         const deltaTime = timer.getDelta()
 
         controls.update()
-        if(!state.paused) tree.update(deltaTime)
+        if(!state.paused) for(const leafTree of trees) leafTree.update(deltaTime)
 
         renderer.render(scene, camera)
         ui.update(deltaTime)
     })
 
     // Console access and scripted checks: `demo.checks.determinism()`, etc.
-    window.demo = { renderer, scene, camera, tree, sceneParams, state }
+    // With several trees the checks run on the first one (demo.tree).
+    window.demo = { renderer, scene, camera, tree, trees, sceneParams, state }
     window.demo.checks = createChecks(window.demo)
 }
 

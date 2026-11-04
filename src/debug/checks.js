@@ -13,7 +13,8 @@ import { ROLE_BRANCH } from '../../lib/index.js'
  *
  * They pause the live loop and drive the rig and the simulation directly with
  * a fixed 1/60 s step and no pointer input, so the result does not depend on
- * the machine's frame rate.
+ * the machine's frame rate. With several trees they check the first one
+ * (demo.tree); the others stay paused meanwhile.
  */
 
 const STEP = 1 / 60

@@ -19,6 +19,9 @@ public/models/sapling_*.glb
 *.mp4
 *.mov
 
+# Settings for one machine only
+vite.config.local.js
+
 # OS
 .DS_Store
 Thumbs.db

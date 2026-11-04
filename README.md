@@ -16,8 +16,21 @@ npm run dev
 Open the address Vite prints (by default `http://localhost:5173/`).
 
 - Move the pointer over the branches to shake the tree; drag to orbit the camera.
-- The panel lets you set the number of leaves, make leaves fall on their own (from one at a time up to all together), turn falling and regrowth on or off, reset, and shake the whole tree.
-- Add `#debug` to the URL to show every setting and the particle counters.
+- The panel picks the kind of tree and how many. It also sets the number of leaves, spontaneous falling (from one at a time up to all together), falling, regrowth and the wind sway (trees without bones), resets them, and shakes every tree: every branch with bones, the whole crown without.
+- Add `#debug` to the URL to show every setting and the particle counters. That panel is in English; its language select (or `?lang=es`) switches it to Spanish.
+
+Every kind of tree the library supports can be tried, alone or several at once:
+
+| Kind | URL | Trees | What it does |
+| --- | --- | --- | --- |
+| GLB with bones (default) | `?tree=glb&bones=1` | up to 4 | Branches the pointer shakes. The rig runs on the CPU and the skinning on the GPU, per tree |
+| GLB without bones | `?tree=glb&bones=0` | up to 16 | The same model, with its armature stripped at load as if exported without one. Sways in the wind on the GPU; the pointer pushes the crown |
+| Provisional with bones | `?tree=procedural&bones=1` | up to 4 | A tree built in code, a different one per tree |
+| Provisional without bones | `?tree=procedural&bones=0` | up to 16 | The same, static |
+
+- `?trees=N` sets how many. They stand on a grid, each turned and scaled a little, with its own seed. A GLB is loaded once and cloned, and the leaf textures are loaded once and shared.
+- The limits are what kept a similar frame time on the machine this was built on: 4 trees with bones (about 9 ms of CPU and 18 ms per frame) cost about as much as 16 without (7 ms and 15 ms).
+- Leaves are per tree: 5000 by default, fewer as trees are added (20 000 in all). `?count=` and `?maxCount=` change them. The panels' settings apply to every tree.
 - `?textures=1` uses a single leaf texture, `?textures=0` none (the built-in leaf).
 
 ## Use it as a library
@@ -72,7 +85,7 @@ The bark and the attached leaves share one displacement function, so leaves neve
 - Each tree starts at its own point in the motion, taken from its `seed`. Give each tree in a scene a different `seed` so they don't sway in step.
 - Strong gusts shake leaves off with the same rule as a rigged tree's branches (`detachThreshold`, `gripVariation`, `detachProbability`). At the defaults no leaf falls at `sway: 1`, a few fall in the strongest gusts at `sway: 2`, and many at `sway: 3`.
 - Falling leaves are free: they leave with the speed of their branch and do not sway with the tree.
-- `enablePointer` works too: the pointer gives the whole tree a push that decays on its own, more the higher it touches. `treeMotion` and `motionStrength` control it. Picking uses the tree's meshes at rest. Thin branches are hard to hit, so you can add a hidden mesh named `collider*` (e.g. a rough hull of the crown) for picking. `shakeAll` is for rigged trees only.
+- `enablePointer` works too: the pointer gives the whole tree a push that decays on its own, more the higher it touches. `treeMotion` and `motionStrength` control it. Picking uses the tree's meshes at rest. Thin branches are hard to hit, so you can add a hidden mesh named `collider*` (e.g. a rough hull of the crown) for picking. `shakeAll()` kicks the whole crown, each time in a new direction.
 - The GLB's materials (`MeshStandardMaterial` and the like) are replaced by their Node equivalents, with every property and texture copied over (the same conversion three's renderer does on its own), plus a `positionNode`. Each tree gets its own copies. `dispose()` puts the original materials back.
 
 All of these change live with `tree.set({ sway: 2, swaySpeed: 1.5, windAngle: 90 })`. Rigged trees ignore `sway` and `swaySpeed`.
@@ -98,7 +111,7 @@ The library ships no leaf images: like the tree's GLB, you supply them.
 
 - `textures` is optional and takes 1 to 5 entries `{ url | texture, weight, name }`. Each leaf picks one when the tree is created, in proportion to the weights; with a single texture every leaf uses it. More than 5 is an error.
 - Images: PNG or WebP with alpha, the stem at the bottom centre, any proportion. `leafSize` is the leaf's height and its width follows the image (width / height), so a 280 × 348 image makes a leaf 0.8 times as wide as it is tall. Textures of different proportions can be mixed in one tree.
-- A `texture` you load yourself is used as it is: set its `colorSpace` to `THREE.SRGBColorSpace`. It must already be loaded (e.g. `await loader.loadAsync(url)`), because its proportion is read from its image. Textures given by `url` are set up by the library.
+- A `texture` you load yourself is used as it is: set its `colorSpace` to `THREE.SRGBColorSpace`, and its `anisotropy` to `renderer.getMaxAnisotropy()` so leaves seen edge-on (e.g. on the ground, from low down) keep their detail. It must already be loaded (e.g. `await loader.loadAsync(url)`), because its proportion is read from its image. Textures given by `url` are set up by the library.
 - Without textures (or with `[]`) the leaves use a built-in leaf shape drawn in the shader, with no images, 0.6 times as wide as it is tall. Its color is `params.leafColor` (default `'#4f7a3a'`), changeable at any time with `tree.set({ leafColor: '#b5651d' })`. Shadows follow the leaf shape in both cases.
 
 ## Tech
