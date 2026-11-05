@@ -1,4 +1,4 @@
-# Tree Demo
+# three-living-trees
 
 Interactive Three.js (WebGPU) demo of a tree whose leaves come loose when you shake it with the pointer, fall, and grow back on the branches. It is also a small library you can use in your own scenes.
 
@@ -33,14 +33,14 @@ Every kind of tree the library supports can be tried, alone or several at once:
 ## Use it as a library
 
 ```bash
-npm install three github:PabloMesquida/tree-demo#v0.4.0
+npm install three github:PabloMesquida/tree-demo#v0.5.0
 ```
 
 Works with three 0.186.1 or newer (tested with 0.186.1 and 0.187.0).
 
 ```js
 import * as THREE from 'three/webgpu'
-import { LeafTree } from 'tree-demo'
+import { LeafTree } from 'three-living-trees'
 
 const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: false })
 
@@ -124,7 +124,7 @@ The tree loads as static because it has no bones. `tree.rigged` is `false` and t
 `LeafForest` draws and simulates many copies of one static tree as one. It has the same API as `LeafTree`, plus a list with the place of each tree:
 
 ```js
-import { LeafForest } from 'tree-demo'
+import { LeafForest } from 'three-living-trees'
 
 const transforms = spots.map(({ x, y, z, turn, size }) =>
 {
@@ -191,7 +191,7 @@ What leaves cost is the area they cover on screen, more than their number: simul
 `stripBones` removes the armature at load, so one GLB can serve both kinds of tree without a second export:
 
 ```js
-import { LeafTree, loadTreeScene, stripBones } from 'tree-demo'
+import { LeafTree, loadTreeScene, stripBones } from 'three-living-trees'
 
 const root = await loadTreeScene('./models/tree.glb')
 stripBones(root)
