@@ -33,7 +33,7 @@ Every kind of tree the library supports can be tried, alone or several at once:
 ## Use it as a library
 
 ```bash
-npm install three github:PabloMesquida/tree-demo#v0.5.0
+npm install three github:PabloMesquida/three-living-trees#v0.5.0
 ```
 
 Works with three 0.186.1 or newer (tested with 0.186.1 and 0.187.0).
