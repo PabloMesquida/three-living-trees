@@ -65,14 +65,14 @@ async function main()
         return fail(`No se ha podido preparar el árbol.\n\n${error.message}`)
     }
     const tree = trees[0] // the panels' parameters are this tree's, copied to the others
-    console.info(`[tree] ${trees.length} × ${options.bones ? 'con huesos' : 'sin huesos'}\n  ${tree.report.join('\n  ')}`)
+    console.info(`[tree] ${options.trees} × ${options.bones ? 'con huesos' : 'sin huesos'}\n  ${tree.report.join('\n  ')}`)
 
     // The whole group: ground at the lowest base, height of the tallest tree,
     // and how far the trees spread from the centre (nothing for a single tree,
     // which keeps the framing it always had)
     const groundY = bounds.min.y
     const height = bounds.max.y - bounds.min.y
-    const several = trees.length > 1
+    const several = options.trees > 1
     const spread = several ? Math.hypot(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z) * 0.5 : 0
     const reach = Math.max(height * 0.9, spread + height * 0.15)
 

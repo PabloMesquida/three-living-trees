@@ -1,4 +1,4 @@
-import { TREE_LIMITS, options, reloadWith } from '../config.js'
+import { TREE_LIMITS, options, reloadWith, treeChoices } from '../config.js'
 
 /**
  * The small panel shown without #debug: kind and number of trees (they
@@ -47,7 +47,9 @@ export class BasicPanel
                 reloadWith({ bones, trees: Math.min(options.trees, limit) })
             }
         )
-        const counts = Array.from({ length: options.limits.maxTrees }, (_, i) => [String(i + 1), String(i + 1)])
+        const counts = [...new Set([...treeChoices(options.limits.maxTrees), options.trees])]
+            .sort((a, b) => a - b)
+            .map((value) => [String(value), String(value)])
         const treesLabel = select('árboles', counts, String(options.trees), (value) => reloadWith({ trees: value }))
 
         const note = document.createElement('p')
@@ -82,7 +84,7 @@ export class BasicPanel
             return label
         }
 
-        const countLabel = slider('leafCount', trees.length > 1 ? 'hojas/árbol' : 'hojas', 0, tree.capacity, 1, (value) => value)
+        const countLabel = slider('leafCount', options.trees > 1 ? 'hojas/árbol' : 'hojas', 0, tree.capacity, 1, (value) => value)
         const spontaneousLabel = slider('spontaneousFall', 'caída sola', 0, 1, 0.01, (value) => `${Math.round(value * 100)} %`)
         // Only a static tree sways in the wind
         const swayLabel = tree.rigged ? null : slider('sway', 'vaivén', 0, 4, 0.05, (value) => value.toFixed(2))

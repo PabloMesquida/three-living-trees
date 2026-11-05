@@ -1,4 +1,4 @@
-import { TREE_LIMITS, options, reloadWith, sceneParams } from '../config.js'
+import { TREE_LIMITS, options, reloadWith, sceneParams, treeChoices } from '../config.js'
 
 /**
  * Debug interface: the Inspector's parameters panel for the controls, plus a
@@ -162,7 +162,7 @@ export class DebugUI
             const limit = (scene.kind === '1' ? TREE_LIMITS.rigged : TREE_LIMITS.static).maxTrees
             reloadWith({ bones: scene.kind, trees: Math.min(options.trees, limit) })
         })
-        sceneGroup.add(scene, 'trees', range(1, options.limits.maxTrees)).name(t.trees(options.limits.maxTrees)).onChange(() => reloadWith({ trees: scene.trees }))
+        sceneGroup.add(scene, 'trees', [...new Set([...treeChoices(options.limits.maxTrees), options.trees])].sort((a, b) => a - b)).name(t.trees(options.limits.maxTrees)).onChange(() => reloadWith({ trees: scene.trees }))
         sceneGroup.add(scene, 'textures', range(0, 5)).name(t.textures).onChange(() => reloadWith({ textures: scene.textures }))
         const capacities = [...new Set([1000, 2500, 5000, 10000, 20000, options.capacity])]
             .filter((value) => value * options.trees <= 160000)
@@ -270,7 +270,7 @@ export class DebugUI
                 ? `${t.shakeLine} ${maxShake.toFixed(2).padStart(6)} rad/s\n` +
                   `${t.bone} ${hovered}\n`
                 : `${t.pointer} ${hovered}\n`) +
-            t.summary(trees.length, tree.rigged, options.limits.maxTrees) +
+            t.summary(options.trees, tree.rigged, options.limits.maxTrees) +
             (tree.rigged ? ` · ${t.bones} ${bones}` : ` · ${t.windOnGpu}`) + '\n' +
             (options.bones && !tree.rigged ? `<span class="bad">${t.noArmature}</span>\n` : '') +
             `${t.leavesOf(active, capacity)} · ${this.fps.toFixed(0)} fps\n` +

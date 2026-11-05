@@ -162,9 +162,6 @@ export function createChecks(demo)
 
             const positions = await simulation.readBuffer(simulation.position)
             const u = sway.uniforms
-            const time = u.time.value
-            const base = u.base.value
-            const height = u.height.value
             const direction = u.direction.value
             const side = new THREE.Vector3(-direction.z, 0, direction.x)
             const rest = new THREE.Vector3()
@@ -175,7 +172,9 @@ export function createChecks(demo)
 
             for(let i = 0; i < simulation.count; i++)
             {
-                rest.fromArray(anchors.position, i * 3).applyMatrix4(asset.root.matrixWorld)
+                const treeIndex = anchors.bone[i]
+                const { base, height, time, push } = sway.treeValues(treeIndex)
+                rest.fromArray(anchors.position, i * 3).applyMatrix4(asset.bones[treeIndex].matrixWorld)
 
                 // Mirror of TreeSway.displacement() (SWAY_SCALE = 0.03)
                 const r = rest.clone().sub(base)
@@ -189,7 +188,7 @@ export function createChecks(demo)
 
                 offset.copy(direction).multiplyScalar(along).addScaledVector(side, across)
                     .multiplyScalar(u.amount.value * 0.03 * height)
-                    .add(u.push.value)
+                    .add(push)
                     .multiplyScalar(h * h)
 
                 maxOffset = Math.max(maxOffset, offset.length())

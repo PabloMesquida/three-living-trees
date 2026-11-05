@@ -24,10 +24,9 @@ Every kind of tree the library supports can be tried, alone or several at once:
 | Kind | URL | Trees | What it does |
 | --- | --- | --- | --- |
 | With bones (default) | `?bones=1` | up to 6 | Branches the pointer shakes. The rig runs on the CPU and the skinning on the GPU, per tree |
-| Without bones | `?bones=0` | up to 24 | The same model, with its armature stripped at load as if exported without one. Sways in the wind on the GPU; the pointer pushes the crown |
+| Without bones | `?bones=0` | up to 100 | The same model, with its armature stripped at load as if exported without one. Sways in the wind on the GPU; the pointer pushes the crown. Several of them are one `LeafForest` |
 
-- `?trees=N` sets how many. They stand on a grid, each turned and scaled a little, with its own seed. The GLB is loaded once and cloned, and the leaf textures are loaded once and shared.
-- The limits are what kept a similar frame time on the machine this was built on, at 1923×909: 6 trees with bones (about 11 ms of CPU and 24 ms per frame) cost about as much as 24 without (10 ms and 23 ms).
+- `?trees=N` sets how many. They stand on a grid, each turned and scaled a little. The GLB and the leaf textures are loaded once.
 - Leaves are per tree: 5000 by default, fewer past 4 trees (20 000 in all). `?count=` and `?maxCount=` change them. The panels' settings apply to every tree.
 - `?textures=1` uses a single leaf texture, `?textures=0` none (the built-in leaf).
 
@@ -69,7 +68,7 @@ tree.set({ spontaneousFall: 0.3, windStrength: 1 }) // any key of DEFAULT_PARAMS
 Two kinds of tree work:
 
 - **Rigged:** an armature with bones named `trunk*` and `branch*` and skinned meshes. Each branch is a spring the pointer can shake, and shaking makes leaves fall. Expensive: the CPU animates every bone and the GPU skins every vertex.
-- **Static:** plain meshes with no bones (e.g. a Sapling Tree Gen curve converted to a mesh, smooth shaded). The whole tree sways in the wind in its vertex shader. Cheap, so several of them fit in one scene. Leaves grow on the thinner branches.
+- **Static:** plain meshes with no bones (e.g. a Sapling Tree Gen curve converted to a mesh, smooth shaded). The whole tree sways in the wind in its vertex shader. Cheap, and for several of them there is `LeafForest`. Leaves grow on the thinner branches.
 
 Main options of `LeafTree.create`: `url` or `object` (an already loaded `Object3D`), `count`, `capacity`, `seed`, `textures`, `branchRadius` (static trees), `groundY`, `params`. The library needs a `WebGPURenderer` running on WebGPU; there is no WebGL fallback.
 
@@ -82,7 +81,7 @@ The bark and the attached leaves share one displacement function, so leaves neve
 - The displacement grows with the height above the base of the tree (height²): the trunk barely moves and the crown does. It points along `windAngle`, the same angle that blows the falling leaves. It combines a lean that grows in gusts, two oscillations, a smaller one across the wind and a faster flutter. The phase changes across the crown.
 - `sway` (default 1): how much the tree moves. At 1 the crown leans about 3 % of the tree height; `0` keeps it still.
 - `swaySpeed` (default 1): 2 is twice as fast.
-- Each tree starts at its own point in the motion, taken from its `seed`. Give each tree in a scene a different `seed` so they don't sway in step.
+- Each tree starts at its own point in the motion, taken from its `seed`. Give each `LeafTree` in a scene a different `seed` so they don't sway in step; the trees of a `LeafForest` do it on their own.
 - Strong gusts shake leaves off with the same rule as a rigged tree's branches (`detachThreshold`, `gripVariation`, `detachProbability`). At the defaults no leaf falls at `sway: 1`, a few fall in the strongest gusts at `sway: 2`, and many at `sway: 3`.
 - Falling leaves are free: they leave with the speed of their branch and do not sway with the tree.
 - `enablePointer` works too: the pointer gives the whole tree a push that decays on its own, more the higher it touches. `treeMotion` and `motionStrength` control it. Picking uses the tree's meshes at rest. Thin branches are hard to hit, so you can add a hidden mesh named `collider*` (e.g. a rough hull of the crown) for picking. `shakeAll()` kicks the whole crown, each time in a new direction.
@@ -100,6 +99,51 @@ All of these change live with `tree.set({ sway: 2, swaySpeed: 1.5, windAngle: 90
 6. **File › Export › glTF 2.0**, format `.glb`, **+Y Up** on, and nothing animated (no skinning).
 
 The tree loads as static because it has no bones. `tree.rigged` is `false` and the report says "Árbol estático".
+
+### A forest: many copies of one tree
+
+`LeafForest` draws and simulates many copies of one static tree as one. It has the same API as `LeafTree`, plus a list with the place of each tree:
+
+```js
+import { LeafForest } from 'tree-demo'
+
+const transforms = spots.map(({ x, y, z, turn, size }) =>
+{
+    const tree = new THREE.Object3D() // or a Matrix4
+    tree.position.set(x, y, z)
+    tree.rotation.y = turn
+    tree.scale.setScalar(size)
+    return tree
+})
+
+const forest = await LeafForest.create(renderer, {
+    url: './models/tree.glb',
+    transforms,
+    textures: [{ url: './textures/leaf_a.webp' }]
+})
+scene.add(forest.object)
+forest.enablePointer(canvas, camera)
+
+// in the loop, once for all the trees
+forest.update(deltaTime)
+```
+
+- It costs one draw call per mesh of the tree, one for the leaves and one compute dispatch, however many trees there are. Up to 1024 trees.
+- Trees don't have bones here: a rigged GLB has its armature stripped as it loads.
+- `count` and `capacity` are per tree. By default the forest shares 20 000 leaves between its trees, so raise `count` for a small one.
+- Each tree can stand at its own height and scale. Its leaves land at its base, or at `groundY` if you set it, and they scale with it. Terrain under a tree that isn't flat isn't taken into account.
+- The pointer pushes the tree it touches, and `shakeAll()` shakes them all. Each tree shows its own part of the anchors and sways from its own time, so copies don't look alike. `set()` applies to the whole forest.
+
+Compared with one `LeafTree` per tree, on the machine this was built on, at 1356×1249, with shadows:
+
+| Trees | Leaves | | CPU per frame | Whole frame | Page ready |
+| --- | --- | --- | --- | --- | --- |
+| 24 | 19 200 | `LeafTree` each | 5 ms | 29 ms | 3 s |
+| 24 | 19 200 | `LeafForest` | 1.5 ms | 24 ms | 1 s |
+| 100 | 20 000 | `LeafTree` each | 15 ms | 47 ms | 8 s |
+| 100 | 20 000 | `LeafForest` | 1.6 ms | 35 ms | 0.5 s |
+
+What limits a forest is the GPU, and above all the triangles of the bark: instancing draws them all the same. With the 32 600 triangle tree of this demo, in the lit pass and the shadow pass, 100 trees spend 19 of their 33 ms on the bark, and 250 trees take 52 ms per frame. There is no level of detail or culling per tree yet, so use a tree with few triangles for a big forest.
 
 ### Using a rigged GLB as a static tree
 
@@ -138,7 +182,7 @@ Leaves are slightly curved instead of flat, with or without textures. `leafCurve
 - On the tree, the tip and edges bend towards the ground, whichever face looks up. A leaf standing on edge bends less, so a falling leaf flexes as it tumbles instead of popping from one side to the other.
 - On the ground, leaves keep their curve: they rest on the stem and midrib with the tip and edges lifted, so no part goes under `groundY`.
 - Shadows follow the curve.
-- Cost: 12 triangles per leaf instead of 2, in one draw call. Measured on the machine this was built on, at 1356×1249, with shadows: no measurable difference with one tree of 5000 leaves (12.6 ms per frame against 12.5), about 1.5 ms more with 24 static trees and 19 200 leaves (24.3 ms against 22.8).
+- Cost: 12 triangles per leaf instead of 2, in one draw call. Measured on the machine this was built on, at 1356×1249, with shadows: no measurable difference with one tree of 5000 leaves (12.6 ms per frame against 12.5), about 1.5 ms more with 24 static trees and 19 200 leaves, each its own `LeafTree` (24.3 ms against 22.8).
 - `leafCurve: 0` goes back to the 2-triangle plane. Use it when a scene has many distant trees.
 
 ## Tech

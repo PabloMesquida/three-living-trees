@@ -1,13 +1,15 @@
 import * as THREE from 'three/webgpu'
 import { clone as cloneRigged } from 'three/addons/utils/SkeletonUtils.js'
-import { LeafTree, loadLeafTextures, loadTreeScene, stripBones } from '../../lib/index.js'
+import { LeafForest, LeafTree, loadLeafTextures, loadTreeScene, stripBones } from '../../lib/index.js'
 import { createRandom } from '../../lib/utils/random.js'
 
 /**
- * The demo's trees: one or several LeafTree instances of the same kind.
+ * The demo's trees: one or several of the same kind.
  *
- *   - The GLB is loaded once and cloned (SkeletonUtils.clone keeps each copy's
- *     own skeleton).
+ *   - Several trees without bones are one LeafForest: instanced bark and one
+ *     leaf simulation. `trees` then holds just the forest.
+ *   - With bones, each tree is its own LeafTree. The GLB is loaded once and
+ *     cloned (SkeletonUtils.clone keeps each copy's own skeleton).
  *   - Without bones, the armature is stripped before cloning (stripBones).
  *   - Leaf textures are loaded once (with the renderer's anisotropic filtering)
  *     and passed to every tree as textures.
@@ -28,6 +30,23 @@ export async function createForest(renderer, options, leafTextures)
     if(!bones) stripBones(template)
     const sharedTextures = textures.map((texture, index) => ({ ...leafTextures[index], url: undefined, texture }))
 
+    if(!bones && total > 1)
+    {
+        const transforms = Array.from({ length: total }, () => new THREE.Object3D())
+        layOut(transforms, seed, new THREE.Box3().setFromObject(template))
+
+        const forest = await LeafForest.create(renderer, { object: template, transforms, count, capacity, seed, textures: sharedTextures })
+
+        const bounds = new THREE.Box3()
+        for(const mesh of forest.asset.meshes)
+        {
+            mesh.computeBoundingBox()
+            bounds.union(mesh.boundingBox)
+        }
+
+        return { trees: [forest], bounds }
+    }
+
     const objects = []
     for(let i = 0; i < total; i++)
     {
@@ -36,7 +55,7 @@ export async function createForest(renderer, options, leafTextures)
         objects.push(object)
     }
 
-    layOut(objects, seed)
+    layOut(objects, seed, new THREE.Box3().setFromObject(template))
 
     const trees = []
     for(let i = 0; i < total; i++)
@@ -62,19 +81,13 @@ export async function createForest(renderer, options, leafTextures)
  * A grid as square as possible, spaced by the widest tree, each tree off its
  * cell a little, turned and scaled.
  */
-function layOut(objects, seed)
+function layOut(objects, seed, box)
 {
     if(objects.length === 1) return
 
     const random = createRandom(seed * 4513 + 29)
-    const size = new THREE.Vector3()
-    let spacing = 0
-    for(const object of objects)
-    {
-        new THREE.Box3().setFromObject(object).getSize(size)
-        spacing = Math.max(spacing, size.x, size.z, size.y * 0.45)
-    }
-    spacing *= 1.1
+    const size = box.getSize(new THREE.Vector3())
+    const spacing = Math.max(size.x, size.z, size.y * 0.45) * 1.1
 
     const columns = Math.ceil(Math.sqrt(objects.length))
     const rows = Math.ceil(objects.length / columns)
