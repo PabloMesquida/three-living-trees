@@ -157,9 +157,11 @@ forest.update(deltaTime, camera)
 
 - `lodTriangles` (default `[0.25, 0.08]`): the share of the triangles each lower level keeps.
 - `lodScreen` (default `[0.5, 0.2]`): the tree's height, as a share of the screen's, below which it goes to each of those levels. `[]` always uses the full tree.
-- It needs a tree made of one island per branch and smooth shaded, like Sapling's. A tree that is all one mesh, or flat shaded, keeps all its triangles; the report (`forest.report`) says how many each level has. Leaves don't change with the distance: on a removed branch they stay where they are.
+- `lodLeaves` (default `[0.75, 0.25]`): the share of its leaves a tree draws at each of those levels. They are drawn bigger to make up for the others, so a distant tree doesn't look bare. `[1, 1]` always draws them all.
+- `lodLeafGrowth` (default `0.5`): how much bigger, as `share ^ -lodLeafGrowth`. At 0.5 they keep the same area in all, so a quarter of the leaves are twice as big. Less costs a little less and looks barer. `forest.leafGrowth` and `forest.drawLeaves()` change it live.
+- The branch levels need a tree made of one island per branch and smooth shaded, like Sapling's. A tree that is all one mesh, or flat shaded, keeps all its triangles; the report (`forest.report`) says how many each level has. Leaves on a removed branch stay where they are.
 
-**Leaving trees out.** A tree the camera can't see isn't drawn. Its shadow can reach the view from outside, so it stays until it is `cullMargin` tree heights out of view (default `1.5`). With a low sun, raise it; `Infinity` never leaves one out. Its leaves are still simulated and drawn. `forest.levelCounts` tells how many trees are at each level, and without a camera in `update()` every tree stays at full detail.
+**Leaving trees out.** A tree the camera can't see isn't drawn, nor are its leaves, though they are still simulated. Its shadow can reach the view from outside, so it stays until it is `cullMargin` tree heights out of view (default `1.5`). With a low sun, raise it; `Infinity` never leaves one out. A leaf of that tree that has flown into view goes with it. `forest.levelCounts` tells how many trees are at each level and how many leaves are drawn, and without a camera in `update()` every tree stays at full detail.
 
 Measured on the machine this was built on, at 1356×1249, with shadows and the 32 600 triangle tree of this demo:
 
@@ -172,7 +174,17 @@ Measured on the machine this was built on, at 1356×1249, with shadows and the 3
 | 500 | 20 000 | | 77 ms | 16 ms |
 | 1024 | 20 480 | | 154 ms | 19 ms |
 
-The CPU stays under 2 ms per frame in every `LeafForest` row (15 ms with 100 `LeafTree`), and 100 trees load in 0.5 s against 8 s. The 250 to 1024 rows see the whole forest from afar, the cheapest view for levels of detail. From inside the forest more trees are close: 100 trees take 28 ms there, against 34 ms at full detail, with a quarter of the trees left out. And what limits a big forest then is its leaves: 500 trees at 100 leaves each take 25 ms and look bare, and more leaves cost the same whether the tree is near or far.
+The CPU stays under 2 ms per frame in every `LeafForest` row (15 ms with 100 `LeafTree`), and 100 trees load in 0.5 s against 8 s. The 250 to 1024 rows were measured before leaves had levels, and see the whole forest from afar, the cheapest view for levels of detail. From inside the forest more trees are close: 100 trees took 28 ms there, against 34 ms at full detail, with a quarter of the trees left out.
+
+Fewer leaves on distant trees, with the bark's levels already on:
+
+| Trees | Leaves simulated | Drawn | All drawn | With `lodLeaves` |
+| --- | --- | --- | --- | --- |
+| 100 | 60 000 | 29 100 | 29 ms | 28 ms |
+| 500 | 50 000 | 13 175 | 29 ms | 22 ms |
+| 500 | 150 000 | 39 525 | 40 ms | 34 ms |
+
+What leaves cost is the area they cover on screen, more than their number: simulating them barely shows, and neither does flattening them (`leafCurve: 0`). So a big forest is limited by how full you want it. 500 trees at 100 leaves each still look bare, and 300 each is fuller, though still sparse from close by, at 34 ms (28 ms with `lodLeafGrowth: 0.4`, with smaller leaves).
 
 ### Using a rigged GLB as a static tree
 
@@ -212,7 +224,7 @@ Leaves are slightly curved instead of flat, with or without textures. `leafCurve
 - On the ground, leaves keep their curve: they rest on the stem and midrib with the tip and edges lifted, so no part goes under `groundY`.
 - Shadows follow the curve.
 - Cost: 12 triangles per leaf instead of 2, in one draw call. Measured on the machine this was built on, at 1356×1249, with shadows: no measurable difference with one tree of 5000 leaves (12.6 ms per frame against 12.5), about 1.5 ms more with 24 static trees and 19 200 leaves, each its own `LeafTree` (24.3 ms against 22.8).
-- `leafCurve: 0` goes back to the 2-triangle plane. Use it when a scene has many distant trees.
+- `leafCurve: 0` goes back to the 2-triangle plane, and may help on a GPU where vertices cost more than on this one. In a `LeafForest` of 100 trees and 60 000 leaves it made no measurable difference here.
 
 ## Tech
 
