@@ -24,10 +24,10 @@ Every kind of tree the library supports can be tried, alone or several at once:
 | Kind | URL | Trees | What it does |
 | --- | --- | --- | --- |
 | With bones (default) | `?bones=1` | up to 6 | Branches the pointer shakes. The rig runs on the CPU and the skinning on the GPU, per tree |
-| Without bones | `?bones=0` | up to 100 | The same model, with its armature stripped at load as if exported without one. Sways in the wind on the GPU; the pointer pushes the crown. Several of them are one `LeafForest` |
+| Without bones | `?bones=0` | up to 500 | The same model, with its armature stripped at load as if exported without one. Sways in the wind on the GPU; the pointer pushes the crown. Several of them are one `LeafForest` |
 
 - `?trees=N` sets how many. They stand on a grid, each turned and scaled a little. The GLB and the leaf textures are loaded once.
-- Leaves are per tree: 5000 by default, fewer past 4 trees (20 000 in all). `?count=` and `?maxCount=` change them. The panels' settings apply to every tree.
+- Leaves are per tree: 5000 by default, fewer past 4 trees with bones (20 000 in all) or past 12 without (60 000 in all). `?count=` and `?maxCount=` change them. The panels' settings apply to every tree.
 - `?textures=1` uses a single leaf texture, `?textures=0` none (the built-in leaf).
 
 ## Use it as a library
@@ -124,26 +124,36 @@ const forest = await LeafForest.create(renderer, {
 scene.add(forest.object)
 forest.enablePointer(canvas, camera)
 
-// in the loop, once for all the trees
-forest.update(deltaTime)
+// in the loop, once for all the trees: the camera chooses each tree's detail
+forest.update(deltaTime, camera)
 ```
 
-- It costs one draw call per mesh of the tree, one for the leaves and one compute dispatch, however many trees there are. Up to 1024 trees.
+- It costs a few draw calls (one per mesh of the tree and level of detail, one for the leaves) and one compute dispatch, however many trees there are. Up to 1024 trees.
 - Trees don't have bones here: a rigged GLB has its armature stripped as it loads.
 - `count` and `capacity` are per tree. By default the forest shares 20 000 leaves between its trees, so raise `count` for a small one.
 - Each tree can stand at its own height and scale. Its leaves land at its base, or at `groundY` if you set it, and they scale with it. Terrain under a tree that isn't flat isn't taken into account.
 - The pointer pushes the tree it touches, and `shakeAll()` shakes them all. Each tree shows its own part of the anchors and sways from its own time, so copies don't look alike. `set()` applies to the whole forest.
 
-Compared with one `LeafTree` per tree, on the machine this was built on, at 1356×1249, with shadows:
+**Level of detail.** Most of a tree's triangles are in its thinnest branches, which from afar are thin lines among the leaves. So a distant tree is drawn without them, removed whole from the thinnest up, which leaves no pieces floating. The levels are made at load, share their vertices, and need no extra files. Shadows use the same level.
 
-| Trees | Leaves | | CPU per frame | Whole frame | Page ready |
-| --- | --- | --- | --- | --- | --- |
-| 24 | 19 200 | `LeafTree` each | 5 ms | 29 ms | 3 s |
-| 24 | 19 200 | `LeafForest` | 1.5 ms | 24 ms | 1 s |
-| 100 | 20 000 | `LeafTree` each | 15 ms | 47 ms | 8 s |
-| 100 | 20 000 | `LeafForest` | 1.6 ms | 35 ms | 0.5 s |
+- `lodTriangles` (default `[0.25, 0.08]`): the share of the triangles each lower level keeps.
+- `lodScreen` (default `[0.5, 0.2]`): the tree's height, as a share of the screen's, below which it goes to each of those levels. `[]` always uses the full tree.
+- It needs a tree made of one island per branch and smooth shaded, like Sapling's. A tree that is all one mesh, or flat shaded, keeps all its triangles; the report (`forest.report`) says how many each level has. Leaves don't change with the distance: on a removed branch they stay where they are.
 
-What limits a forest is the GPU, and above all the triangles of the bark: instancing draws them all the same. With the 32 600 triangle tree of this demo, in the lit pass and the shadow pass, 100 trees spend 19 of their 33 ms on the bark, and 250 trees take 52 ms per frame. There is no level of detail or culling per tree yet, so use a tree with few triangles for a big forest.
+**Leaving trees out.** A tree the camera can't see isn't drawn. Its shadow can reach the view from outside, so it stays until it is `cullMargin` tree heights out of view (default `1.5`). With a low sun, raise it; `Infinity` never leaves one out. Its leaves are still simulated and drawn. `forest.levelCounts` tells how many trees are at each level, and without a camera in `update()` every tree stays at full detail.
+
+Measured on the machine this was built on, at 1356×1249, with shadows and the 32 600 triangle tree of this demo:
+
+| Trees | Leaves | One `LeafTree` each | `LeafForest`, full detail | `LeafForest` with levels |
+| --- | --- | --- | --- | --- |
+| 24 | 19 200 | 29 ms | 24 ms | |
+| 100 | 20 000 | 47 ms | 37 ms | 22 ms |
+| 100 | 60 000 | | | 27 ms |
+| 250 | 20 000 | | 48 ms | 16 ms |
+| 500 | 20 000 | | 77 ms | 16 ms |
+| 1024 | 20 480 | | 154 ms | 19 ms |
+
+The CPU stays under 2 ms per frame in every `LeafForest` row (15 ms with 100 `LeafTree`), and 100 trees load in 0.5 s against 8 s. The 250 to 1024 rows see the whole forest from afar, the cheapest view for levels of detail. From inside the forest more trees are close: 100 trees take 28 ms there, against 34 ms at full detail, with a quarter of the trees left out. And what limits a big forest then is its leaves: 500 trees at 100 leaves each take 25 ms and look bare, and more leaves cost the same whether the tree is near or far.
 
 ### Using a rigged GLB as a static tree
 

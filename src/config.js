@@ -34,26 +34,27 @@ const DEFAULT_GLB = './models/sapling_test12_b.glb'
  * What each kind of tree allows. A rigged tree costs CPU every frame (its
  * spring rig, at 120 Hz) and GPU (skinning, plus a bone uniform array in
  * every leaf shader), and the pointer raycasts its skinned collider. Several
- * static trees are one LeafForest, limited by the triangles of their bark.
+ * static trees are one LeafForest, instanced and with levels of detail.
  */
 export const TREE_LIMITS = {
     rigged: { maxTrees: 6, label: 'con huesos' },
-    static: { maxTrees: 100, label: 'sin huesos' } // several are one LeafForest
+    static: { maxTrees: 500, label: 'sin huesos' } // several are one LeafForest
 }
 
 /** The numbers of trees the panels offer: one by one at first, then spaced out. */
 export function treeChoices(max)
 {
-    return [1, 2, 3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64, 100].filter((value) => value <= max)
+    return [1, 2, 3, 4, 5, 6, 8, 12, 16, 24, 32, 48, 64, 100, 250, 500].filter((value) => value <= max)
 }
-
-// Leaves: per tree by default, and in total across every tree's buffers
-const LEAVES_PER_SCENE = 20000
-const MAX_CAPACITY_PER_SCENE = 160000
 
 const bones = query.get('bones') !== '0'
 const limits = bones ? TREE_LIMITS.rigged : TREE_LIMITS.static
 const trees = intOption('trees', 1, 1, limits.maxTrees)
+
+// Leaves: per tree by default, and in total across every tree's buffers. A
+// forest has room for more: most of its bark is at a low level of detail
+const LEAVES_PER_SCENE = !bones && trees > 1 ? 60000 : 20000
+const MAX_CAPACITY_PER_SCENE = 160000
 // A round number, with the step shrinking so a big forest doesn't round down to 0
 const roundDown = (value, step) => Math.floor(value / step) * step || Math.floor(value / 10) * 10 || 1
 const count = intOption('count', Math.min(5000, roundDown(LEAVES_PER_SCENE / trees, 100)), 0, 200000)

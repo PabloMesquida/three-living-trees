@@ -37,14 +37,7 @@ export async function createForest(renderer, options, leafTextures)
 
         const forest = await LeafForest.create(renderer, { object: template, transforms, count, capacity, seed, textures: sharedTextures })
 
-        const bounds = new THREE.Box3()
-        for(const mesh of forest.asset.meshes)
-        {
-            mesh.computeBoundingBox()
-            bounds.union(mesh.boundingBox)
-        }
-
-        return { trees: [forest], bounds }
+        return { trees: [forest], bounds: forest.bounds }
     }
 
     const objects = []

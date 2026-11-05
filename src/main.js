@@ -83,7 +83,7 @@ async function main()
     scene.background = new THREE.Color(0x1b2126)
     for(const leafTree of trees) scene.add(leafTree.object)
 
-    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 100)
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, Math.max(100, spread * 6))
 
     scene.add(new THREE.HemisphereLight(0xdfeaff, 0x3a3226, 1.6))
     const sun = new THREE.DirectionalLight(0xfff1dd, 2.2)
@@ -188,7 +188,8 @@ async function main()
         const deltaTime = timer.getDelta()
 
         controls.update()
-        if(!state.paused) for(const leafTree of trees) leafTree.update(deltaTime)
+        // A forest also takes the camera, to choose each tree's level of detail
+        if(!state.paused) for(const leafTree of trees) leafTree.update(deltaTime, camera)
 
         renderer.render(scene, camera)
         ui.update(deltaTime)
