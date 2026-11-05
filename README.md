@@ -43,7 +43,7 @@ Works with three 0.186.1 or newer (tested with 0.186.1 and 0.187.0).
 import * as THREE from 'three/webgpu'
 import { LeafTree } from 'tree-demo'
 
-const renderer = new THREE.WebGPURenderer({ canvas, antialias: true })
+const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: false })
 
 const tree = await LeafTree.create(renderer, {
     url: './models/tree.glb',
@@ -73,6 +73,8 @@ Two kinds of tree work:
 
 Main options of `LeafTree.create`: `url` or `object` (an already loaded `Object3D`), `count`, `capacity`, `seed`, `textures`, `branchRadius` (static trees), `groundY`, `params`. The library needs a `WebGPURenderer` running on WebGPU; there is no WebGL fallback.
 
+Create the renderer with `alpha: false`. The leaves use `alphaToCoverage`, so their edges write an alpha below 1 to the canvas. With the default `alpha: true`, the page background shows through those pixels as thin lines (white ones on a white page). `LeafTree.create` warns once per renderer about this. If you do want a transparent canvas, ignore the warning, but expect those lines.
+
 ### Static trees: wind sway
 
 The bark and the attached leaves share one displacement function, so leaves never come off their branch. Shadows sway too.
@@ -98,6 +100,23 @@ All of these change live with `tree.set({ sway: 2, swaySpeed: 1.5, windAngle: 90
 6. **File › Export › glTF 2.0**, format `.glb`, **+Y Up** on, and nothing animated (no skinning).
 
 The tree loads as static because it has no bones. `tree.rigged` is `false` and the report says "Árbol estático".
+
+### Using a rigged GLB as a static tree
+
+`stripBones` removes the armature at load, so one GLB can serve both kinds of tree without a second export:
+
+```js
+import { LeafTree, loadTreeScene, stripBones } from 'tree-demo'
+
+const root = await loadTreeScene('./models/tree.glb')
+stripBones(root)
+const tree = await LeafTree.create(renderer, { object: root })
+```
+
+- It changes `root` in place and returns it. Call it before `LeafTree.create`, and before cloning if you want several trees.
+- Each `SkinnedMesh` becomes a plain `Mesh` with its shape at rest. Normals are kept, which is right as long as the rest pose is the bind pose (true for a fresh export).
+- Whatever else hangs from a bone, such as `leaf_anchor*` empties, moves to the root and keeps its place in the world.
+- Pass the object that contains the tree: a loose `SkinnedMesh` or `Bone` as `root` is an error.
 
 ### How many bones
 

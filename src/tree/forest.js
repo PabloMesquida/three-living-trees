@@ -1,15 +1,14 @@
 import * as THREE from 'three/webgpu'
 import { clone as cloneRigged } from 'three/addons/utils/SkeletonUtils.js'
-import { LeafTree, loadLeafTextures, loadTreeScene } from '../../lib/index.js'
+import { LeafTree, loadLeafTextures, loadTreeScene, stripBones } from '../../lib/index.js'
 import { createRandom } from '../../lib/utils/random.js'
-import { stripBones } from './stripBones.js'
 
 /**
  * The demo's trees: one or several LeafTree instances of the same kind.
  *
  *   - The GLB is loaded once and cloned (SkeletonUtils.clone keeps each copy's
  *     own skeleton).
- *   - Without bones, the armature is stripped before cloning (stripBones.js).
+ *   - Without bones, the armature is stripped before cloning (stripBones).
  *   - Leaf textures are loaded once (with the renderer's anisotropic filtering)
  *     and passed to every tree as textures.
  *   - Trees stand on a jittered grid, each turned and scaled a little, placed

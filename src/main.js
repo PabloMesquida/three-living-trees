@@ -43,7 +43,7 @@ async function main()
         )
     }
 
-    const renderer = new THREE.WebGPURenderer({ canvas, antialias: true })
+    const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: false })
     if(options.debug) renderer.inspector = new Inspector()
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(window.innerWidth, window.innerHeight)
