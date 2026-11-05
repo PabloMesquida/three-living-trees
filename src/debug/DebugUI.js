@@ -44,6 +44,7 @@ const STRINGS = {
         windAngle: 'wind direction',
         growDuration: 'grow duration',
         leafSize: 'leaf scale',
+        leafCurve: 'leaf curve',
         leafColor: 'leaf color',
         orientation: 'Leaf orientation',
         leafAngle: 'angle to branch',
@@ -98,6 +99,7 @@ const STRINGS = {
         windAngle: 'dirección viento',
         growDuration: 'duración crecimiento',
         leafSize: 'escala hojas',
+        leafCurve: 'curva hojas',
         leafColor: 'color hojas',
         orientation: 'Orientación hojas',
         leafAngle: 'ángulo con la rama',
@@ -197,6 +199,7 @@ export class DebugUI
         leaves.add(params, 'windAngle', -180, 180, 1).name(t.windAngle).onChange(onChange)
         leaves.add(params, 'growDuration', 0.1, 6, 0.1).name(t.growDuration).onChange(onChange)
         leaves.add(params, 'leafSize', 0.02, 0.5, 0.005).name(t.leafSize).onChange(onChange)
+        leaves.add(params, 'leafCurve', 0, 0.5, 0.01).name(t.leafCurve).onChange(onChange)
         // The color only drives the built-in leaf, drawn when there are no textures
         if(tree.textures.length === 0) leaves.addColor(params, 'leafColor').name(t.leafColor).onChange(onChange)
 

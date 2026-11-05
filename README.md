@@ -131,6 +131,16 @@ The library ships no leaf images: like the tree's GLB, you supply them.
 - A `texture` you load yourself is used as it is: set its `colorSpace` to `THREE.SRGBColorSpace`, and its `anisotropy` to `renderer.getMaxAnisotropy()` so leaves seen edge-on (e.g. on the ground, from low down) keep their detail. It must already be loaded (e.g. `await loader.loadAsync(url)`), because its proportion is read from its image. Textures given by `url` are set up by the library.
 - Without textures (or with `[]`) the leaves use a built-in leaf shape drawn in the shader, with no images, 0.6 times as wide as it is tall. Its color is `params.leafColor` (default `'#4f7a3a'`), changeable at any time with `tree.set({ leafColor: '#b5651d' })`. Shadows follow the leaf shape in both cases.
 
+### Leaf curve
+
+Leaves are slightly curved instead of flat, with or without textures. `leafCurve` (default `0.15`) is how far the tip bends, as a fraction of the leaf's height. The edges bend too, more on a wide leaf than on a narrow one. It changes live with `tree.set({ leafCurve: 0.3 })`, and each leaf varies a little around that value.
+
+- On the tree, the tip and edges bend towards the ground, whichever face looks up. A leaf standing on edge bends less, so a falling leaf flexes as it tumbles instead of popping from one side to the other.
+- On the ground, leaves keep their curve: they rest on the stem and midrib with the tip and edges lifted, so no part goes under `groundY`.
+- Shadows follow the curve.
+- Cost: 12 triangles per leaf instead of 2, in one draw call. Measured on the machine this was built on, at 1356×1249, with shadows: no measurable difference with one tree of 5000 leaves (12.6 ms per frame against 12.5), about 1.5 ms more with 24 static trees and 19 200 leaves (24.3 ms against 22.8).
+- `leafCurve: 0` goes back to the 2-triangle plane. Use it when a scene has many distant trees.
+
 ## Tech
 
 Three.js 0.186 with `WebGPURenderer` and TSL: the leaf simulation runs on the GPU in compute shaders. Built with Vite.
