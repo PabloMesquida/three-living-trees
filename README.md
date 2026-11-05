@@ -70,9 +70,28 @@ Two kinds of tree work:
 - **Rigged:** an armature with bones named `trunk*` and `branch*` and skinned meshes. Each branch is a spring the pointer can shake, and shaking makes leaves fall. Expensive: the CPU animates every bone and the GPU skins every vertex.
 - **Static:** plain meshes with no bones (e.g. a Sapling Tree Gen curve converted to a mesh, smooth shaded). The whole tree sways in the wind in its vertex shader. Cheap, and for several of them there is `LeafForest`. Leaves grow on the thinner branches.
 
-Main options of `LeafTree.create`: `url` or `object` (an already loaded `Object3D`), `count`, `capacity`, `seed`, `textures`, `branchRadius` (static trees), `groundY`, `params`. The library needs a `WebGPURenderer` running on WebGPU; there is no WebGL fallback.
+Main options of `LeafTree.create`: `url` or `object` (an already loaded `Object3D`), `count`, `capacity`, `seed`, `textures`, `branchRadius` (static trees), `groundY`, `ground`, `params`. The library needs a `WebGPURenderer` running on WebGPU; there is no WebGL fallback.
 
 Create the renderer with `alpha: false`. The leaves use `alphaToCoverage`, so their edges write an alpha below 1 to the canvas. With the default `alpha: true`, the page background shows through those pixels as thin lines (white ones on a white page). `LeafTree.create` warns once per renderer about this. If you do want a transparent canvas, ignore the warning, but expect those lines.
+
+### Uneven ground
+
+By default leaves land at one height: the base of the tree, or `groundY`. On terrain with levels, a tree near a ledge drops leaves that stop in mid-air past the edge. Pass the meshes they should land on instead, already placed in the scene:
+
+```js
+const tree = await LeafTree.create(renderer, {
+    url: './models/tree.glb',
+    ground: [terrain, steps, rocks] // a mesh, a group, or a list of them
+})
+```
+
+- Leaves land on the highest surface under them, and walls stop them: a leaf blown into one slides down to its foot.
+- A leaf rests on the slope under it, keeping its curve. It measures the ground at its tip and sides, so it works on ramps and rounded surfaces. At a ledge or a wall (steeper than about 60°) it stays level instead of tipping over.
+- Past the end of the ground, leaves keep falling until they are recycled. `groundY` then acts as a floor nothing falls below.
+- The meshes are read once, when the tree is created: their triangles are drawn from above into a height map, with no render. 74 000 triangles take 20 ms. If the ground or the tree moves, call `tree.setGround(meshes)`.
+- The cost while running is one or two texture reads per falling leaf, plus four when it lands. With 20 000 leaves in the air it didn't show in the frame time, against rounds that varied more than any difference.
+- `groundResolution` (default 512) is the map's cells per side. It covers what leaves can reach, about 3 tree heights around, or less if the ground is smaller: about 6 cm per cell for a 5 m tree. A big `LeafForest` covers more, so it may want a higher one.
+- It only knows the top surface, so a leaf can't land under an overhang. A leaf is rigid, so on a rock not much bigger than itself part of it can go through or hang in the air. It stays where it lands, even on a steep slope. Cells aren't filtered, so an edge can be off by up to one cell.
 
 ### Static trees: wind sway
 
@@ -131,7 +150,7 @@ forest.update(deltaTime, camera)
 - It costs a few draw calls (one per mesh of the tree and level of detail, one for the leaves) and one compute dispatch, however many trees there are. Up to 1024 trees.
 - Trees don't have bones here: a rigged GLB has its armature stripped as it loads.
 - `count` and `capacity` are per tree. By default the forest shares 20 000 leaves between its trees, so raise `count` for a small one.
-- Each tree can stand at its own height and scale. Its leaves land at its base, or at `groundY` if you set it, and they scale with it. Terrain under a tree that isn't flat isn't taken into account.
+- Each tree can stand at its own height and scale, and its leaves scale with it. They land at its base, at `groundY` if you set it, or on `ground` (see "Uneven ground") for terrain that isn't flat.
 - The pointer pushes the tree it touches, and `shakeAll()` shakes them all. Each tree shows its own part of the anchors and sways from its own time, so copies don't look alike. `set()` applies to the whole forest.
 
 **Level of detail.** Most of a tree's triangles are in its thinnest branches, which from afar are thin lines among the leaves. So a distant tree is drawn without them, removed whole from the thinnest up, which leaves no pieces floating. The levels are made at load, share their vertices, and need no extra files. Shadows use the same level.
