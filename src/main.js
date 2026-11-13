@@ -8,8 +8,7 @@ import { DebugUI } from './debug/DebugUI.js'
 import { BasicPanel } from './ui/BasicPanel.js'
 import { createChecks } from './debug/checks.js'
 
-const INSPECTOR_STORAGE_KEY = 'threejs-inspector' // where three's Inspector keeps its layout
-const MIN_OPEN_PANEL_WIDTH = 768 // narrower, the open panel would cover the tree
+const MIN_OPEN_PANEL_WIDTH = 768 // narrower, the open settings would cover the tree
 
 const fail = (message) =>
 {
@@ -47,14 +46,6 @@ async function main()
     }
 
     const renderer = new THREE.WebGPURenderer({ canvas, antialias: true, alpha: false })
-
-    // Read before the Inspector saves its layout for the first time
-    let firstVisit = true
-    try
-    {
-        firstVisit = window.localStorage.getItem(INSPECTOR_STORAGE_KEY) === null
-    }
-    catch(error) {} // storage blocked: treat it as a first visit
     if(options.debug) renderer.inspector = new Inspector()
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.setSize(window.innerWidth, window.innerHeight)
@@ -172,14 +163,16 @@ async function main()
         : new BasicPanel({ trees, onChange })
     window.addEventListener('hashchange', () => window.location.reload())
 
-    // The Inspector starts closed, on its performance tab. A first visit opens it
-    // on the settings instead, unless the screen is narrow enough that the panel
-    // would cover the tree. Later visits find it as they left it.
-    if(options.debug && firstVisit && window.innerWidth >= MIN_OPEN_PANEL_WIDTH)
+    // Show the settings in the Inspector's side panel, without its bottom bar of
+    // tabs (performance, memory...), which starts closed even if a visit left it
+    // open (the Inspector remembers). On a narrow screen the settings would cover
+    // the tree, so they start closed too: the Inspector's button opens them.
+    if(options.debug)
     {
-        const profiler = renderer.inspector.profiler
-        profiler.setActiveTab('parameters')
-        if(!profiler.panel.classList.contains('visible')) profiler.togglePanel()
+        const { profiler, parameters } = renderer.inspector
+        if(profiler.panel.classList.contains('visible')) profiler.togglePanel()
+        if(window.innerWidth >= MIN_OPEN_PANEL_WIDTH) profiler.show(parameters)
+        else profiler.hide()
     }
 
     /**
