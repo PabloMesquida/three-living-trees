@@ -17,7 +17,7 @@ Open the address Vite prints (by default `http://localhost:5173/`).
 
 - Move the pointer over the branches to shake the tree; drag to orbit the camera.
 - The panel picks the kind of tree and how many. It also sets the number of leaves, spontaneous falling (from one at a time up to all together), falling, regrowth and the wind sway (trees without bones), resets them, and shakes every tree: every branch with bones, the whole crown without.
-- Add `#debug` to the URL to show every setting and the particle counters. That panel is in English; its language select (or `?lang=es`) switches it to Spanish.
+- Every setting, the particle counters and the profiler show by default; on a first visit to a wide screen the settings panel opens on its own, and later visits find it as you left it. That panel is in English; its language select (or `?lang=es`) switches it to Spanish. Add `#basic` to the URL for a small panel with just the main settings, in Spanish.
 
 Every kind of tree the library supports can be tried, alone or several at once:
 

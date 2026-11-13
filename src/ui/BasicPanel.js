@@ -1,10 +1,10 @@
 import { TREE_LIMITS, options, reloadWith, treeChoices } from '../config.js'
 
 /**
- * The small panel shown without #debug: kind and number of trees (they
+ * The small panel shown with #basic: kind and number of trees (they
  * reload the page), number of leaves, falling, regrowth, wind sway (static
  * trees), reset and shake. Everything else lives in DebugUI
- * (#debug). The controls edit the first tree's params; main.js copies them
+ * (the default). The controls edit the first tree's params; main.js copies them
  * to the others.
  */
 export class BasicPanel

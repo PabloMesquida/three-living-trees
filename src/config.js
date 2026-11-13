@@ -64,8 +64,9 @@ const capacity = Math.min(
 )
 
 export const options = {
-    // #debug in the URL shows every setting, the counters and the profiler
-    debug: window.location.hash.toLowerCase() === '#debug',
+    // Every setting, the counters and the profiler, unless #basic asks for the
+    // small panel instead (#debug, from older links, gets the default anyway)
+    debug: window.location.hash.toLowerCase() !== '#basic',
     glb: query.get('glb') || DEFAULT_GLB,
     bones,
     limits,
@@ -74,7 +75,7 @@ export const options = {
     capacity,
     seed: intOption('seed', 1, 0, 0x7fffffff),
     textures: intOption('textures', 5, 0, 5),
-    // Language of the debug panel (#debug): en (default) or es
+    // Language of the debug panel: en (default) or es
     lang: query.get('lang') === 'es' ? 'es' : 'en'
 }
 
